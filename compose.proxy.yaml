@@ -1,0 +1,19 @@
+# 部署到主機：走 Traefik，依 ${DOMAIN} 導流；各環境用不同 project 名可同時並存。
+# 用法：make up-dev / up-qas / up-prod（Makefile 會設好 project 名與 --env-file）
+services:
+  frontend:
+    networks:
+      - default          # 同專案內：frontend ↔ backend
+      - proxy            # 對外：Traefik ↔ frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      # router/service 名帶 APP_ENV，確保多環境共用同一個 Traefik 時不衝突
+      - "traefik.http.routers.${APP_ENV}-frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.${APP_ENV}-frontend.entrypoints=web"
+      - "traefik.http.services.${APP_ENV}-frontend.loadbalancer.server.port=80"
+
+networks:
+  proxy:
+    external: true
+  default: {}
