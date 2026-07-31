@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: ./backend
+    # 依 APP_ENV 載入對應環境的設定檔（dev/qas/prod）
+    env_file:
+      - env/.env.${APP_ENV:-dev}
+    ports:
+      - "8000:8000"        # 開著方便本機直接打 http://localhost:8000
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:80"          # http://localhost:3000
+    depends_on:
+      - backend

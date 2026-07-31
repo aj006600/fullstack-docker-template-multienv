@@ -1,0 +1,14 @@
+# python
+**/__pycache__/
+*.pyc
+**/.venv/
+**/.pytest_cache/
+
+# node
+**/node_modules/
+**/dist/
+
+# 機密設定不進版控（非機密的 env/.env.* 才提交）
+env/*.local
+*.secret
+.DS_Store

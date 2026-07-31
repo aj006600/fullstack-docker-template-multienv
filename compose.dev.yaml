@@ -1,0 +1,6 @@
+services:
+  backend:
+    # dev 專屬：掛載後端原始碼 + 熱重載，改 code 不用重建映像
+    volumes:
+      - ./backend/app:/app/app
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

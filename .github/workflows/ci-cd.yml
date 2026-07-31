@@ -1,0 +1,91 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:          # 純文件變更不觸發 build/deploy（PR 仍會跑測試）
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches: [main]
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  # ---------- CI：後端測試 ----------
+  test-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen --dev
+      - run: uv run pytest -q
+
+  # ---------- CI：前端建置檢查 ----------
+  build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  # ---------- 建置一次：兩個服務各打不可變的 SHA 標籤 ----------
+  build:
+    needs: [test-backend, build-frontend]
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ env.IMAGE }}-${{ matrix.service }}:${{ github.sha }}
+
+  # ---------- 依序 promote 同一組 SHA 映像：dev → qas → prod ----------
+  deploy-dev:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - run: echo "部署 backend+frontend :${{ github.sha }} 到 dev"
+      # TODO: 換成實際部署指令
+
+  deploy-qas:
+    needs: deploy-dev
+    runs-on: ubuntu-latest
+    environment: qas
+    steps:
+      - run: echo "部署 backend+frontend :${{ github.sha }} 到 qas"
+      # TODO: 換成實際部署指令
+
+  deploy-prod:
+    needs: deploy-qas
+    runs-on: ubuntu-latest
+    environment: production   # 在 GitHub 設定 required reviewers → 上 prod 需人工核准
+    steps:
+      - run: echo "部署 backend+frontend :${{ github.sha }} 到 prod"
+      # TODO: 換成實際部署指令
