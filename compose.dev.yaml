@@ -1,6 +1,14 @@
+# 本機單環境開發：直接開 localhost 埠（不經 Traefik）+ 後端熱重載。
+# 用法：make dev  → http://localhost:3000
 services:
   backend:
-    # dev 專屬：掛載後端原始碼 + 熱重載，改 code 不用重建映像
+    # 掛載後端原始碼 + 熱重載，改 code 不用重建映像
     volumes:
       - ./backend/app:/app/app
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    ports:
+      - "8000:8000"        # 方便本機直接打 http://localhost:8000
+
+  frontend:
+    ports:
+      - "3000:80"          # http://localhost:3000

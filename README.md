@@ -20,10 +20,12 @@
 │   ├── nginx.conf              # 供靜態檔 + 反向代理 /api 到 backend
 │   ├── package.json · package-lock.json
 │   └── Dockerfile
-├── compose.yaml                # base：backend(依 APP_ENV 載入 env 檔) + frontend
-├── compose.dev.yaml            # dev 覆寫：後端掛載原始碼 + 熱重載
-├── env/{.env.dev,.env.qas,.env.prod}
-├── Makefile                    # make dev / qas / prod
+├── compose.yaml                # base：只定義服務與內部接線（不決定對外曝露）
+├── compose.dev.yaml            # 本機開發覆寫：開 localhost 埠 + 後端熱重載
+├── compose.proxy.yaml          # 部署覆寫：走 Traefik 依 domain 導流
+├── proxy/compose.yaml          # 共用 Traefik（整台機器跑一次）
+├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + DOMAIN
+├── Makefile                    # make dev / proxy-up / up-dev|qas|prod
 └── .github/workflows/ci-cd.yml # 測前後端 → build 兩映像各一次 → promote dev→qas→prod
 ```
 
@@ -37,17 +39,46 @@
                           └─ 其他路徑 = SPA 靜態檔
 ```
 
-## 快速開始
+## 快速開始（本機單環境開發）
 
 ```bash
-make dev     # APP_ENV=dev：前後端起來，後端熱重載
+make dev     # APP_ENV=dev：前後端起來，後端熱重載（不經 Traefik）
 # 前端 → http://localhost:3000（會顯示 backend 回傳的環境）
 # 後端 → http://localhost:8000/health
-
-make qas     # 以 qas 設定跑
-make prod    # 以 prod 設定跑
-make down    # 停掉
 ```
+
+## 多環境同機部署（dev + qas + prod 並存，走 Traefik）
+
+適用於「同一台機器同時跑多個環境、團隊用 domain 存取」。**用 domain 區分環境，不用 port**：
+只有 Traefik 對外開 80，各環境容器不開 host 埠，所以不會撞埠。
+
+```
+                        ┌─ dev.myapp.internal  → dev  這組容器
+團隊 → Traefik(:80) ─────┼─ qas.myapp.internal  → qas  這組容器
+                        └─ myapp.internal      → prod 這組容器
+```
+
+每個環境是**獨立的 compose project**（獨立網路/容器），dev 的前端只連 dev 的後端，互不干擾。
+
+```bash
+make proxy-up    # 一次性：建立 proxy 網路 + 啟動共用 Traefik
+make up-dev      # 起 dev（Host = dev.myapp.internal）
+make up-qas      # 起 qas（可與 dev 同時存在）
+make up-prod     # 起 prod
+make ps          # 看 Traefik + 各環境狀態
+make down-dev    # 停 dev（qas/prod 不受影響）
+```
+
+### 你需要準備的（repo 外）
+
+- **內網 DNS**：把 `dev.myapp.internal`、`qas.myapp.internal`、`myapp.internal`（或 `*.myapp.internal` 萬用）指到這台機器的內網 IP，團隊才連得到。把 `env/.env.*` 裡的 `DOMAIN` 改成你的真實內網網域。
+- **Traefik dashboard**：`http://<host>:8080` 可看導流狀況（正式環境請關閉或加保護）。
+
+### 幾個此架構的重點
+
+- **同 port、不同 domain**：跟真實 prod 一致；容器內部埠（前端 80、後端 8000）每個環境都一樣。
+- **注意**：三環境同機沒有真正的故障/安全隔離——prod 若很重要，建議獨立一台機器。需要時可再加各環境的資源上限（`cpus` / `mem_limit`）避免互相拖垮。
+- **TLS**：目前走 HTTP(80)；要 HTTPS 再於 Traefik 加內網憑證（內部 CA / mkcert），屬於需要再加。
 
 ## CI/CD promotion（最佳實踐核心）
 

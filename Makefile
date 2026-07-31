@@ -1,15 +1,35 @@
-.PHONY: dev qas prod down
+PROXY_NET := proxy
+BASE := -f compose.yaml -f compose.proxy.yaml
 
-# 本機開發：後端熱重載 + 掛載原始碼
+.PHONY: proxy-up proxy-down dev up-dev up-qas up-prod down-dev down-qas down-prod ps
+
+# ---------- 共用 Traefik（整台機器跑一次）----------
+proxy-up:
+	@docker network inspect $(PROXY_NET) >/dev/null 2>&1 || docker network create $(PROXY_NET)
+	docker compose -f proxy/compose.yaml up -d
+
+proxy-down:
+	docker compose -f proxy/compose.yaml down
+
+# ---------- 本機單環境開發（不經 Traefik，直接 localhost:3000）----------
 dev:
 	APP_ENV=dev docker compose -f compose.yaml -f compose.dev.yaml up --build
 
-# 以 qas / prod 設定在本機跑（模擬該環境）
-qas:
-	APP_ENV=qas docker compose up --build -d
+# ---------- 部署各環境（經 Traefik，可同時並存）----------
+# 每個環境用不同 COMPOSE_PROJECT_NAME → 各自獨立網路/容器，互不干擾
+up-dev:
+	COMPOSE_PROJECT_NAME=fullstack-dev  docker compose $(BASE) --env-file env/.env.dev  up -d --build
+up-qas:
+	COMPOSE_PROJECT_NAME=fullstack-qas  docker compose $(BASE) --env-file env/.env.qas  up -d --build
+up-prod:
+	COMPOSE_PROJECT_NAME=fullstack-prod docker compose $(BASE) --env-file env/.env.prod up -d --build
 
-prod:
-	APP_ENV=prod docker compose up --build -d
+down-dev:
+	COMPOSE_PROJECT_NAME=fullstack-dev  docker compose $(BASE) --env-file env/.env.dev  down
+down-qas:
+	COMPOSE_PROJECT_NAME=fullstack-qas  docker compose $(BASE) --env-file env/.env.qas  down
+down-prod:
+	COMPOSE_PROJECT_NAME=fullstack-prod docker compose $(BASE) --env-file env/.env.prod down
 
-down:
-	docker compose down
+ps:
+	docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
