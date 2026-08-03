@@ -2,7 +2,7 @@
 
 [← 回 README](../README.md) ｜ 其他模式：[A. separate-hosts](deploy-separate-hosts.md) ｜ [B. same-host-by-port](deploy-same-host-by-port.md)
 
-三個環境**擠在同一台機器**，但用 **domain 區分**（同一個 **80** 埠、靠共用 **Traefik** 依 Host 導流）。同機方案裡最貼近真實 prod 的做法。
+三個環境**跑在同一台機器**，但用 **domain 區分**（同一個 **80** 埠、靠共用 **Traefik** 依 Host 導流）。同機方案裡最貼近真實 prod 的做法。
 
 - **適合**：只有一台機器、要用 domain、團隊要能連
 - **代價**：三環境同機，**沒有實體隔離**；要跑一份共用 Traefik
@@ -59,7 +59,7 @@ make ps                # 看狀態
 - qas → `http://qas.app.localhost`
 - prod → `http://app.localhost`
 
-> ⚠️ `*.localhost` 指的是「**執行瀏覽器那台機器自己**」（127.0.0.1）。**隊友打這個只會連到他自己的電腦、連不到你。**
+> ⚠️ `*.localhost` 指的是「**執行瀏覽器那台機器自己**」（127.0.0.1）。**隊友用這個網址只會連到自己的電腦，連不到你。**
 
 #### 3b. 團隊（同網路、免 DNS）—— 用 nip.io
 

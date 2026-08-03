@@ -2,7 +2,7 @@
 
 [← 回 README](../README.md) ｜ 其他模式：[B. same-host-by-port](deploy-same-host-by-port.md) ｜ [C. same-host-by-domain](deploy-same-host-by-domain.md)
 
-每個環境（dev / qas / prod）**各自跑在一台主機**上，前端佔標準 **80** 埠。這是**最佳實踐**——實體隔離，一個環境爆了不影響別的；也對齊真實世界「同一個映像、不同機器、用 domain/host 區分」。
+每個環境（dev / qas / prod）**各自跑在一台主機**上，前端佔標準 **80** 埠。這是**隔離最完整、最貼近真實世界**的部署方式（同一個映像、不同機器，以 host/domain 區分）。
 
 - **適合**：有多台機器（或雲端多台 VM）、在意 prod 隔離
 - **代價**：要多台機器
@@ -28,7 +28,7 @@ make up-separate-hosts ENV=dev
 
 在 **qas 主機**：`make up-separate-hosts ENV=qas`；**prod 主機**：`make up-separate-hosts ENV=prod`。
 
-> 每台主機只跑它自己那個環境，用標準 80 埠、不會撞。
+> 每台主機只跑它自己那個環境，用標準 80 埠，不會與其他環境衝突。
 
 ### 4. 存取
 
