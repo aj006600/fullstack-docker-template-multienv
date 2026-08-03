@@ -2,10 +2,10 @@
 
 [← 回 README](../README.md) ｜ 其他模式：[A. separate-hosts](deploy-separate-hosts.md) ｜ [C. same-host-by-domain](deploy-same-host-by-domain.md)
 
-三個環境**擠在同一台機器**，用**不同的 host port** 區分。最簡單、最快上手。
+三個環境**跑在同一台機器**，用**不同的 host port** 區分。
 
 - **適合**：只有一台機器、想最快跑起來、能接受網址帶 port（`IP:3001`）
-- **代價**：三環境同機，**沒有實體隔離**；網址不漂亮（帶 port）
+- **代價**：三環境同機，**沒有實體隔離**；網址會帶 port（`IP:3001`），較不簡潔
 - **對外曝露**：`deploy/compose.same-host-by-port.yaml`（前端 `${HTTP_PORT}:80`，埠由 env 檔決定）
 
 ## 埠對照（預設）
@@ -24,7 +24,7 @@ GitHub「Use this template」或 clone，改成你的 app。
 
 ### 2. 確認各環境的 port
 
-`env/.env.dev|qas|prod` 各有一行 `HTTP_PORT`，三個**必須不同**（同機不能撞埠）。預設 3000/3001/3002，要改就改這裡。
+`env/.env.dev|qas|prod` 各有一行 `HTTP_PORT`，三個**必須不同**（同機的埠不能重複）。預設 3000/3001/3002，如需更改在此調整。
 
 ### 3. 起三個環境（可同時並存）
 

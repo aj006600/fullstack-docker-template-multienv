@@ -51,7 +51,7 @@ docker ps --format '{{.Image}}'       # 看正在跑的容器用哪個映像
 
 ## 回溯（rollback）到舊版
 
-映像不可變且都留在 registry，所以**回溯 = 重新部署上一組好的 SHA，不用重 build**（超快）。
+映像不可變且都留在 registry，所以**回溯 = 重新部署上一組好的 SHA，不需重新 build**。
 
 ```bash
 git log --oneline                     # 1. 找出要回到的舊 SHA
