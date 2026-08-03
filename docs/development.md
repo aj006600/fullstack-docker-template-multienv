@@ -23,6 +23,31 @@ make down    # 停掉
 
 `make dev` 用 `compose.dev.yaml`：前端開 3000、後端開 8000，並掛載後端原始碼 + 熱重載。
 
+## 進到容器裡（`docker exec`）
+
+`make dev` 已把後端原始碼掛載進容器並開啟熱重載，因此**改程式碼直接在本機編輯即可，不需進容器**。進容器是為了「在容器內執行指令 / 檢查 / 除錯」——例如查看環境變數、執行一次性腳本、確認相依安裝。
+
+用 compose 的**服務名**進入（免查容器名，在專案根目錄執行）：
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml exec backend bash   # 後端（Debian 基底，有 bash）
+docker compose -f compose.yaml -f compose.dev.yaml exec frontend sh    # 前端（nginx:alpine，用 sh）
+```
+
+或用容器名（先以 `docker ps` / `make ps` 查名稱）：
+
+```bash
+docker exec -it <容器名> bash    # 後端；前端用 sh
+```
+
+容器內：後端工作目錄為 `/app`、程式在 `/app/app`、venv 在 `/app/.venv`（`uvicorn`、`pytest` 等已在 PATH）。**後端以非 root 的 `appuser` 執行**（前端 nginx 則以預設 root 執行）。後端需要安裝系統套件時，改用 root 進入：
+
+```bash
+docker compose -f compose.yaml -f compose.dev.yaml exec -u root backend bash
+```
+
+> 上述指令針對 `make dev`。若跑的是部署模式（`make up-*`），各環境 project 名不同（如 `fullstack-dev`），用 `docker ps` 查容器名後以 `docker exec -it <容器名> …` 進入最直接。
+
 ## 不透過容器（更快的內層迴圈）
 
 ```bash
