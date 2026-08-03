@@ -1,0 +1,7 @@
+# B：same-host-by-port（最簡妥協）——三環境同機，各自用不同 host port。
+# 前端對外埠由 env 檔的 HTTP_PORT 決定（dev/qas/prod 各不同），後端不對外。
+# 各環境用不同 COMPOSE_PROJECT_NAME → 獨立網路/容器，可並存。
+services:
+  frontend:
+    ports:
+      - "${HTTP_PORT:-3000}:80"
