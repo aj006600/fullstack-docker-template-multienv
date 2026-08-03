@@ -107,7 +107,11 @@ make down-domain-dev # 停 dev
 | **團隊（同網路、免 DNS）** | `dev.app.<你的IP>.nip.io` | nip.io 把 `*.<IP>.nip.io` 自動解析到該 IP。隊友需在同一網路、且能連外網。查你的 IP 見下方 |
 | **正式對外** | 你的真實域名 | 正規 DNS + TLS + 機器對外曝露 |
 
-> **要給團隊連**：改 `env/.env.*` 的 `DOMAIN`（例 `dev.app.192.168.x.x.nip.io`），再重起環境 `make down-domain-dev && make up-domain-dev`。
+> **要給團隊連**：**執行時傳入** `DOMAIN`（**別改 `env/.env.*`**——它被 git 追蹤，IP 一旦 commit 就會進**公開 repo**，而且 IP 會變）：
+>
+> ```bash
+> DOMAIN=dev.app.<你的IP>.nip.io make up-domain-dev   # qas/prod 同理
+> ```
 >
 > 查本機對外 IP（活躍介面**不一定**是 `en0`，別寫死）：`ipconfig getifaddr "$(route get default | awk '/interface:/{print $2}')"`
 
