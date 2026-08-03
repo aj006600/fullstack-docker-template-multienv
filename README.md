@@ -28,7 +28,7 @@
 │   └── compose.same-host-by-domain.yaml # C：同機、Traefik 依 domain
 ├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT(B) + DOMAIN(C)
 ├── Makefile                    # make dev / up-separate-hosts / up-port-* / up-domain-*
-└── .github/workflows/ci-cd.yml # 測前後端 → build 兩映像各一次 → promote dev→qas→prod
+└── .github/workflows/ci-cd.yml # merge→build+dev/qas 自動；打 v* tag→prod
 ```
 
 > 同一個 app，**三種部署模式擇一使用**（不是同時跑）——差別只在「怎麼對外曝露」。
@@ -147,13 +147,14 @@ docker ps --filter publish=<port>       # 或看是哪個容器占用
 
 ## CI/CD promotion（最佳實踐核心）
 
-**build 一次 → 兩個服務各打不可變的 git SHA 標籤 → 同一組 SHA 依序部署到 dev → qas → prod。**
-各環境部署的是**同一組映像**（用 SHA 指定），不重 build、不靠 `latest`。
+**build 一次 → 兩個服務各打不可變的 git SHA 標籤 → 同一組映像 promote。** dev/qas 靠 merge 自動、prod 靠打 tag——
+各環境跑的都是**同一組映像**（用 SHA 指定），不重 build、不靠 `latest`。
 
 ```
-push main ─▶ test-backend + build-frontend ─▶ build(backend+frontend :sha) ─▶ deploy-dev ─▶ deploy-qas ─▶ deploy-prod
-                                                                                                               ▲
-                                                        GitHub Environment「production」設 required reviewers → 上 prod 需人工核准
+merge main ─▶ test ─▶ build(backend+frontend :sha) ─▶ deploy-dev ─▶ deploy-qas     （自動）
+git tag v* ─▶ test ─▶ release(:sha→:v*) ─▶ deploy-prod                             （發版才觸發）
+                                              ▲
+                    GitHub Environment「production」設 required reviewers → 上 prod 需人工核准
 ```
 
 映像位置（兩個）：
@@ -172,9 +173,9 @@ ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
 
 ### 1. prod 人工核准（Environments）
 
-> **注意：預設行為是測試通過就一路直接部署到 prod，不會停下來等人核准。**
+> **注意：prod 只在打 `v*` tag 時才部署（merge 不會碰 prod）。但即使打了 tag，若沒設 required reviewers，`production` 也不會擋——會直接上。**
 
-到 **Settings → Environments** 建立 `dev`、`qas`、`production`，並在 `production` 加 **Required reviewers**。
+到 **Settings → Environments** 建立 `dev`、`qas`、`production`，並在 `production` 加 **Required reviewers**（發版才會停下等人核准）。
 
 ### 2. 分支保護（require PR + CI 綠燈才能進 main）
 
@@ -188,7 +189,7 @@ ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
 
 ## 開發流程（trunk-based）
 
-只有一個長期分支 `main`。所有改動走「短命功能分支 → PR → 合併 main」，PR 觸發測試、merge 到 main 才 build/部署（純文件變更靠 `paths-ignore` 跳過）。
+只有一個長期分支 `main`。所有改動走「短命功能分支 → PR → 合併 main」。PR 觸發測試、merge 到 main 才 build + 部署 dev/qas、打 `v*` tag 才上 prod（純文件變更靠 `paths-ignore` 跳過）。
 
 ```bash
 git checkout -b fix/xxx
@@ -197,10 +198,28 @@ gh pr create --fill
 gh pr merge --squash    # CI 綠燈後自己就能 merge（approvals = 0）
 ```
 
-## 部署時機：merge 即部署 vs tag 才發版
+## 部署流程：merge 到 dev/qas、打 tag 才上 prod
 
-目前是**「merge 即部署」**：每次 merge 到 main → 自動 build + 部署到各環境，prod 前用核准閘門把關。
-這是精簡又正確的甜蜜點。等到「不想每次 merge 都上 prod」時，再加 **tag-based 發版**（merge 只部署 dev，prod 由 `git tag` 觸發）——屬於需要再加。
+「合併程式碼」和「正式上 prod」分開——日常 merge 只碰 dev/qas，prod 只在你**刻意打 tag 發版**時才動。
+
+```
+merge main ─▶ build(:sha) ─▶ deploy dev ─▶ deploy qas          （自動，不含 prod）
+git tag v1.2.0 ─▶ release(:sha→:v1.2.0) ─▶ deploy prod          （發版才觸發）
+```
+
+- **merge 到 `main`** → build 兩個映像（`:sha`）+ 自動部署 **dev、qas**
+- **打 `v*` tag** → 部署 **prod**：把測試過的 `:sha` **加上版本標籤 `:v1.2.0`（不重 build）**再上
+
+### 怎麼發版（操作教學）
+
+```bash
+git checkout main && git pull          # 1. 要發的 commit 已在 main、dev/qas 驗過（:sha 已 build）
+git tag v1.2.0                         # 2. 打版本 tag
+git push origin v1.2.0                 # 3. 推 tag → 觸發 prod 發版
+```
+
+> - prod 前的 `production` environment 若設了 required reviewers，發版會**停下等人核准**（見上方〈一次性設定〉）。
+> - tag 要打在**已在 main、已 build** 的 commit（否則找不到對應的 `:sha` 映像）。
 
 ## 常用指令
 
