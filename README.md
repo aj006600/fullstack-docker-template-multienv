@@ -167,6 +167,8 @@ ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
 > deploy 步驟目前是 placeholder（印出要部署的映像與環境）。promotion 結構與審核閘門已就緒，
 > 把 `echo` 換成你的實際部署指令即可。
 
+**映像自動清理**：`.github/workflows/cleanup.yml` 每週跑一次——兩個服務的 `:sha` 建置各**只留最近 10 個**、**保護 `latest` 與 `v*` 正式版**、刪 untagged。避免映像無限累積。
+
 ## 一次性設定（GitHub）
 
 以下設定存在 GitHub、不在程式碼裡，各做一次即可。
