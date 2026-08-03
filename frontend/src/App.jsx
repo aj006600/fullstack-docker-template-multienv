@@ -1,20 +1,23 @@
 import { useEffect, useState } from 'react'
 
 export default function App() {
-  const [message, setMessage] = useState('loading...')
+  const [info, setInfo] = useState({ message: 'loading...', env: '' })
 
   useEffect(() => {
     fetch('/api/message')
       .then((res) => res.json())
-      .then((data) => setMessage(data.message))
-      .catch(() => setMessage('failed to reach backend'))
+      .then((data) => setInfo(data))
+      .catch(() => setInfo({ message: 'failed to reach backend', env: '' }))
   }, [])
 
   return (
     <main style={{ fontFamily: 'sans-serif', padding: '2rem' }}>
-      <h1>Fullstack Minimal</h1>
+      <h1>Fullstack Multi-env</h1>
       <p>
-        Backend says: <strong>{message}</strong>
+        Backend says: <strong>{info.message}</strong>
+      </p>
+      <p>
+        Environment: <strong>{info.env || '—'}</strong>
       </p>
     </main>
   )
