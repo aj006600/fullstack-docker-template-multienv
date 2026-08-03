@@ -104,10 +104,12 @@ make down-domain-dev # 停 dev
 | 誰要連 | `DOMAIN` 寫法 | 說明 |
 |--------|--------------|------|
 | **只有你自己（本機）** | `dev.app.localhost` | `*.localhost` 指的是**執行瀏覽器那台機器自己**（127.0.0.1）。**隊友打這個只會連到他自己的電腦、連不到你。** |
-| **團隊（同網路、免 DNS）** | `dev.app.<你的IP>.nip.io` | nip.io 把 `*.<IP>.nip.io` 自動解析到該 IP。隊友需在同一網路、且能連外網。查 IP：`ipconfig getifaddr en0` |
+| **團隊（同網路、免 DNS）** | `dev.app.<你的IP>.nip.io` | nip.io 把 `*.<IP>.nip.io` 自動解析到該 IP。隊友需在同一網路、且能連外網。查你的 IP 見下方 |
 | **正式對外** | 你的真實域名 | 正規 DNS + TLS + 機器對外曝露 |
 
 > **要給團隊連**：改 `env/.env.*` 的 `DOMAIN`（例 `dev.app.192.168.x.x.nip.io`），再重起環境 `make down-domain-dev && make up-domain-dev`。
+>
+> 查本機對外 IP（活躍介面**不一定**是 `en0`，別寫死）：`ipconfig getifaddr "$(route get default | awk '/interface:/{print $2}')"`
 
 ### 共通提醒
 
