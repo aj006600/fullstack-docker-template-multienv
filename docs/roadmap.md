@@ -1,0 +1,20 @@
+# Roadmap：需要時再加（依專案需要）
+
+這個範本刻意保持精簡——給你正確的**骨架與流程**，production 細節按你的 app 再長上去。
+以下項目是**刻意留白**的（不是缺陷，是「minimal，需要再加」的範圍選擇），需要時再補：
+
+## 部署
+
+- **實裝 deploy 步驟**：`.github/workflows/ci-cd.yml` 的 `deploy-dev/qas/prod` 目前是 `echo` placeholder。
+  換成真實部署指令（SSH pull + `docker compose up` / `kubectl apply` …），並讓 CI 連得到目標機器
+  （self-hosted runner，或 SSH + secrets）。**CD 的結構與 prod 核准閘門已就緒，只差這一步。**
+
+## 生產環境常見需求
+
+- **Secrets 管理**：真正的密鑰怎麼注入部署（GitHub Secrets → deploy、或 Vault / 雲端 secrets manager）。`env/` 只放非機密設定。
+- **TLS / HTTPS**：目前純 HTTP。對外真域名可讓 Traefik 自動申請 Let's Encrypt；內網用內部 CA / mkcert。
+- **資料庫 / stateful 服務**：目前無狀態。加 compose 的 db 服務 + migration + 備份策略。
+- **健康檢查**：後端有 `/health`，但 Dockerfile / compose 尚未接 `HEALTHCHECK` 去用它（部署到 LB / orchestrator 時需要）。
+- **可觀測性**：結構化 log、metrics、tracing。
+- **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
+- **多架構映像**：目前只 build amd64。要跑 arm64（Apple Silicon / AWS Graviton）需 buildx 多平台建置。
