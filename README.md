@@ -1,6 +1,6 @@
 # fullstack-docker-template-multienv
 
-前後端分離 + 多環境（dev / qas / prd）的容器範本：React(Vite) 前端 + FastAPI 後端，
+前後端分離 + 多環境（dev / qas / prod）的容器範本：React(Vite) 前端 + FastAPI 後端，
 用 docker compose 兜起來，CI/CD 遵循「build 一次、依序 promote」的業界最佳實踐。
 
 > 核心原則（12-factor）：**一份程式碼、一組映像、設定隨環境變**。絕不複製程式碼，環境差異只在設定。
