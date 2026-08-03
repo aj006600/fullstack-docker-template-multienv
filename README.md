@@ -99,13 +99,15 @@ make up-domain-prod  # → http://app.localhost
 make down-domain-dev # 停 dev
 ```
 
-domain 怎麼解析（網址由 env 檔的 `DOMAIN` 決定）：
+**domain 怎麼被解析（重要）**——網址由 env 檔的 `DOMAIN` 決定：
 
-| 情境 | `DOMAIN` 寫法 | 要設定什麼 |
-|------|--------------|-----------|
-| 本機自己 | `dev.app.localhost` | 無——`*.localhost` 瀏覽器自動解析到 127.0.0.1 |
-| 團隊、免 DNS | `dev.<機器IP>.nip.io` | 無——nip.io 自動解析（需連外網），只是過渡方便 |
-| 正式對外 | 你的真實域名 | 正規 DNS + TLS + 機器對外曝露 |
+| 誰要連 | `DOMAIN` 寫法 | 說明 |
+|--------|--------------|------|
+| **只有你自己（本機）** | `dev.app.localhost` | `*.localhost` 指的是**執行瀏覽器那台機器自己**（127.0.0.1）。**隊友打這個只會連到他自己的電腦、連不到你。** |
+| **團隊（同網路、免 DNS）** | `dev.app.<你的IP>.nip.io` | nip.io 把 `*.<IP>.nip.io` 自動解析到該 IP。隊友需在同一網路、且能連外網。查 IP：`ipconfig getifaddr en0` |
+| **正式對外** | 你的真實域名 | 正規 DNS + TLS + 機器對外曝露 |
+
+> **要給團隊連**：改 `env/.env.*` 的 `DOMAIN`（例 `dev.app.192.168.x.x.nip.io`），再重起環境 `make down-domain-dev && make up-domain-dev`。
 
 ### 共通提醒
 
