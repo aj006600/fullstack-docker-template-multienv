@@ -225,10 +225,10 @@ git push origin v1.2.0                 # 3. 推 tag → 觸發 prod 發版
 
 ## 常用指令
 
-### 本機開發
+### 開發（本機，不透過容器）
 
 ```bash
-# 後端（不透過容器）
+# 後端
 cd backend && uv sync --dev
 APP_ENV=dev uv run uvicorn app.main:app --reload   # :8000
 uv run pytest -q
@@ -237,12 +237,50 @@ uv run pytest -q
 cd frontend && npm install && npm run dev           # :5173，/api 已代理到 :8000
 ```
 
-### 查看 / 回溯
+### 查看「現在跑的是哪一版」
+
+映像用 **git SHA** 當標籤，所以「哪個環境跑哪一版」= 「跑哪個 SHA」。
 
 ```bash
-git log --oneline -10                 # 看 commit 與 SHA
-git checkout <sha>                    # 看某版 code
-docker pull ghcr.io/<your-account>/fullstack-docker-template-multienv-backend:<sha>   # 回溯 = 跑舊 SHA 映像
+git log --oneline -10                 # 看最近的 commit 與其 SHA
+git show <sha>                        # 看某個 SHA 改了什麼
+git checkout <sha>                    # 切過去看該版 code（看完 git switch - 回來）
+
+docker ps --format '{{.Image}}'       # 看正在跑的容器用哪個映像
 ```
 
-> 追蹤「哪個環境跑哪一版」靠 **SHA 映像標籤** + GitHub Environments 部署歷史，不用開環境分支。
+> GitHub 網頁 → repo → **Environments**：可看每個環境「部署了哪個 SHA、何時、由誰」的完整歷史。不用開環境分支。
+
+### 回溯（rollback）到舊版
+
+映像不可變且都留在 registry，所以**回溯 = 重新部署上一組好的 SHA，不用重 build**（超快）。
+
+```bash
+git log --oneline                     # 1. 找出要回到的舊 SHA
+
+# 2. 直接拉那組舊映像（真部署時把部署指令指向這個 tag 即可）
+docker pull ghcr.io/<your-account>/fullstack-docker-template-multienv-backend:<old-sha>
+docker pull ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<old-sha>
+```
+
+### 版本標記（可選，讓紀錄更清楚）
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0   # 發版時打 tag
+git checkout v1.0.0                          # 之後要看該版 code
+```
+
+## 備註：雙邊託管 GitLab + GitHub（尚未實作，之後需要再加）
+
+CI 設定檔是**平台專屬**的，兩份可並存、各讀各的；`backend/`、`frontend/`、`compose.yaml` 完全共用：
+
+| 平台 | CI 設定檔 |
+|------|----------|
+| GitHub Actions | `.github/workflows/*.yml`（現有） |
+| GitLab CI | `.gitlab-ci.yml`（放根目錄，之後再加） |
+
+真的要做時，先決定三件事（不然容易踩雷）：
+
+1. **選一邊當真相來源**，用倉庫鏡像（mirror）自動同步另一邊——避免兩邊各自 push 造成分岔。
+2. **避免兩邊都跑 CI／都部署**（除非故意，例如各部署到不同雲）。
+3. **secrets 與 registry 各平台各設**（GHCR vs GitLab Container Registry）。
