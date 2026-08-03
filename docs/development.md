@@ -40,6 +40,42 @@ make dev-down     # 停止並清理：移除本機開發的容器與網路
 | 執行方式 | 前景（`Ctrl+C` 停、`make dev-down` 清） | 背景 `-d`（**一定要 `make down-*`** 才會停） |
 | 怎麼連 | `localhost:3000/8000` | 依模式（80 埠 / `IP:port` / domain） |
 
+## 讓環境「變成最新」——分清楚該用哪個指令
+
+同樣叫 dev/qas/prod，但**「本機自己跑」和「CI/CD 部署」是兩個不相干的世界**，更新方式完全不同。常見誤解是「merge 一下、本機 `make up-*` 的環境就變新」——不會。
+
+### 本機（你這台機器）→ 靠**重跑 `make up-*`**
+
+`make up-*` 用你**當下的本機 code** 現場 `--build`。**merge PR 不會更新它們**；改了 code 想讓本機環境變新，就自己重跑：
+
+```bash
+make up-domain-dev        # 用目前本機 code 建 + 跑 dev
+# …改了 code…
+make up-domain-dev        # 再跑一次才會重建成最新（不會自己變）
+make down-domain-dev      # 停掉
+```
+
+> 這些容器跟 GitHub / CI **無關**，不會因為你 merge 就自動變新。
+
+### 遠端（CI/CD 部署）→ 靠 **merge / 打 tag**
+
+推到 GitHub 後由 CI 自動建映像並部署（詳見 [cicd.md](cicd.md)）：
+
+```bash
+gh pr merge --squash                        # 部署 dev + qas（merge 到 main 自動觸發，不含 prod）
+git tag v1.2.0 && git push origin v1.2.0    # 部署 prod（只有打 v* tag 才觸發，需人工核准）
+```
+
+### 一眼看哪個指令更新哪裡
+
+| 指令 | 更新哪裡 | 更新哪個環境 |
+|------|---------|-------------|
+| `make up-*`（**重跑**） | 你**本機** | 你指定的那一個 |
+| `gh pr merge`（merge main） | **遠端 CI 部署** | **dev + qas**（不含 prod） |
+| `git tag v* && git push` | **遠端 CI 部署** | **prod**（需核准） |
+
+> 目前 CI 的 deploy 步驟是 **placeholder（只 echo）**——把它換成實際部署指令（SSH pull + `docker compose up` 等）後，上表「遠端」那兩列才會真的部署到伺服器。見 [cicd.md](cicd.md)。
+
 ## 改程式碼怎麼測（後端熱重載）
 
 `make dev` 已掛載後端原始碼並開啟 `uvicorn --reload`，所以測試一個改動**不需進容器、也不需重建**：
