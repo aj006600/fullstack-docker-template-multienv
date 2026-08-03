@@ -19,10 +19,10 @@
 ## 快速開始（2 分鐘，本機）
 
 ```bash
-make dev     # 前後端起來，後端熱重載
+make dev       # 前後端起來，後端熱重載（前景執行）
 # 前端 → http://localhost:3000（會顯示 backend 回傳的環境）
 # 後端 → http://localhost:8000/health
-make down    # 停掉
+make dev-down  # 停止並清理（或直接 Ctrl+C 停止；詳見 docs/development.md）
 ```
 
 前後端怎麼溝通：瀏覽器只打 frontend，`/api/*` 由 frontend 的 nginx 反向代理到 backend（同源、免 CORS）。

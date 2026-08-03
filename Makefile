@@ -3,7 +3,7 @@ PORT := -f compose.yaml -f deploy/compose.same-host-by-port.yaml
 DOM  := -f compose.yaml -f deploy/compose.same-host-by-domain.yaml
 ENV  ?= dev
 
-.PHONY: dev \
+.PHONY: dev dev-down \
 	up-separate-hosts down-separate-hosts \
 	up-port-dev up-port-qas up-port-prod down-port-dev down-port-qas down-port-prod \
 	up-domain-dev up-domain-qas up-domain-prod down-domain-dev down-domain-qas down-domain-prod \
@@ -12,6 +12,9 @@ ENV  ?= dev
 # ── 本機開發（不經任何 proxy，直接 localhost:3000）──
 dev:
 	APP_ENV=dev docker compose -f compose.yaml -f compose.dev.yaml up --build
+# 停止並清理本機開發的容器與網路（Ctrl+C 只停不移除，這個會移除）
+dev-down:
+	docker compose -f compose.yaml -f compose.dev.yaml down
 
 # ── A：separate-hosts（每環境各自一台主機，標準 80 埠）──
 # 在該環境的主機上跑，用 ENV 指定環境：make up-separate-hosts ENV=qas
