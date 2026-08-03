@@ -22,14 +22,17 @@
 │   └── Dockerfile
 ├── compose.yaml                # base：只定義服務與內部接線（不決定對外曝露）
 ├── compose.dev.yaml            # 本機開發覆寫：開 localhost 埠 + 後端熱重載
-├── compose.proxy.yaml          # 部署覆寫：接上共用 Traefik、依 domain 導流
-├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + DOMAIN
-├── Makefile                    # make dev / up-dev|qas|prod
+├── deploy/                     # 三種部署模式（同一個 app、只差怎麼曝露）
+│   ├── compose.separate-hosts.yaml    # A：每環境各自一台主機（最佳實踐）
+│   ├── compose.same-host-by-port.yaml # B：同機、不同 port
+│   └── compose.same-host-by-domain.yaml # C：同機、Traefik 依 domain
+├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT(B) + DOMAIN(C)
+├── Makefile                    # make dev / up-separate-hosts / up-port-* / up-domain-*
 └── .github/workflows/ci-cd.yml # 測前後端 → build 兩映像各一次 → promote dev→qas→prod
 ```
 
-> 共用的 Traefik（reverse proxy）不在這個 repo，而在獨立的 **[`traefik-proxy`](../traefik-proxy)** repo，
-> 整台機器跑一次即可；本 repo 只負責「把自己的服務接上去」（label + `proxy` 網路）。
+> 同一個 app，**三種部署模式擇一使用**（不是同時跑）——差別只在「怎麼對外曝露」。
+> C 模式用的共用 Traefik 不在本 repo，在獨立的 **[`traefik-proxy`](../traefik-proxy)** repo。
 
 ## 前後端怎麼溝通
 
@@ -49,46 +52,66 @@ make dev     # APP_ENV=dev：前後端起來，後端熱重載（不經 Traefik�
 # 後端 → http://localhost:8000/health
 ```
 
-## 多環境同機部署（dev + qas + prod 並存，走 Traefik）
+## 三種部署模式（擇一）
 
-適用於「同一台機器同時跑多個環境、團隊用 domain 存取」。**用 domain 區分環境，不用 port**：
-只有 Traefik 對外開 80，各環境容器不開 host 埠，所以不會撞埠。
+同一個 app，三種「怎麼把環境跑起來/曝露」的做法。**選一種用**，不是同時跑。
 
+| 模式 | 拓撲 | 隔離/最佳實踐 | 何時選 |
+|------|------|--------------|--------|
+| **A. separate-hosts** | 每環境**各自一台主機**，標準 80 埠 | 最佳實踐、完整隔離 | 有多台機器 / 在意 prod 隔離 |
+| **B. same-host-by-port** | 三環境**同機、不同 port** | 最簡妥協、無隔離 | 只有一台機器、想最快、能接受 `IP:port` |
+| **C. same-host-by-domain** | 三環境**同機、Traefik 依 domain** | 同機但用 domain（貼近真實） | 只有一台機器、要 domain、團隊存取 |
+
+### A. separate-hosts（最佳實踐）
+
+在**每個環境自己的主機**上跑單一環境，前端佔標準 80 埠：
+
+```bash
+make up-separate-hosts ENV=dev    # 在 dev 主機
+make up-separate-hosts ENV=qas    # 在 qas 主機
+make up-separate-hosts ENV=prod   # 在 prod 主機
 ```
-                        ┌─ dev.app.localhost  → dev  這組容器
-瀏覽器 → Traefik(:80) ────┼─ qas.app.localhost  → qas  這組容器
-                        └─ app.localhost      → prod 這組容器
-```
+存取：`http://<該主機位址>`。各環境實體分離，互不影響。
 
-每個環境是**獨立的 compose project**（獨立網路/容器），dev 的前端只連 dev 的後端，互不干擾。
+### B. same-host-by-port（最簡妥協）
+
+三環境擠一台機器，用不同 port 區分（埠由 env 檔的 `HTTP_PORT` 決定）：
+
+```bash
+make up-port-dev     # → http://<host>:3000
+make up-port-qas     # → http://<host>:3001
+make up-port-prod    # → http://<host>:3002
+make down-port-dev   # 停 dev（其他不受影響）
+```
+最快上手，缺點是 URL 帶 port、沒 domain。
+
+### C. same-host-by-domain（同機 + Traefik）
+
+三環境擠一台機器，但用 **domain** 區分（同 port 80、靠 Traefik 導流），貼近真實 prod：
 
 ```bash
 # 前置（整台機器一次）：到 traefik-proxy repo 啟動共用 Traefik
 cd ../traefik-proxy && make up && cd -
 
-# 起各環境（可同時並存）
-make up-dev      # 起 dev
-make up-qas      # 起 qas
-make up-prod     # 起 prod
-make ps          # 看各環境狀態
-make down-dev    # 停 dev（qas/prod 不受影響）
+make up-domain-dev   # → http://dev.app.localhost
+make up-domain-qas   # → http://qas.app.localhost
+make up-domain-prod  # → http://app.localhost
+make down-domain-dev # 停 dev
 ```
 
-開瀏覽器（網址由 `env/.env.*` 的 `DOMAIN` 決定）：`http://dev.app.localhost`、`http://qas.app.localhost`、`http://app.localhost`。
-
-### domain 怎麼解析（依存取對象）
+domain 怎麼解析（網址由 env 檔的 `DOMAIN` 決定）：
 
 | 情境 | `DOMAIN` 寫法 | 要設定什麼 |
 |------|--------------|-----------|
 | 本機自己 | `dev.app.localhost` | 無——`*.localhost` 瀏覽器自動解析到 127.0.0.1 |
-| 團隊、免 DNS | `dev.<機器IP>.nip.io` | 無——nip.io 自動解析（需連得到外網），只是過渡方便 |
-| 正式對外 | 你的真實域名 | 正規 DNS + TLS，還要把機器對外曝露 |
+| 團隊、免 DNS | `dev.<機器IP>.nip.io` | 無——nip.io 自動解析（需連外網），只是過渡方便 |
+| 正式對外 | 你的真實域名 | 正規 DNS + TLS + 機器對外曝露 |
 
-### 幾個此架構的重點
+### 共通提醒
 
-- **同 port、不同 domain**：跟真實 prod 一致；容器內部埠（前端 80、後端 8000）每個環境都一樣。
-- **注意**：三環境同機沒有真正的故障/安全隔離——prod 若很重要，建議獨立一台機器。需要時可再加各環境的資源上限（`cpus` / `mem_limit`）。
-- **這是內部/早期階段做法**：對外正式 prod 還需要真實域名 + TLS + 對外曝露 + 安全強化（見上表最後一列），屬於需要再加。
+- B、C 都是**三環境同機**，沒有真正的故障/安全隔離——prod 若很重要，選 A（獨立主機）。
+- B、C 各環境是**獨立的 compose project**（獨立網路/容器），dev 的前端只連 dev 的後端。
+- **對外正式 prod** 不管哪種模式都還需要：真實域名 + TLS + 對外曝露 + 安全強化，屬於需要再加。
 
 ## CI/CD promotion（最佳實踐核心）
 
