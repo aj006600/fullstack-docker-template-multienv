@@ -12,16 +12,33 @@
                           └─ 其他路徑 = SPA 靜態檔
 ```
 
-## 快速開始（容器、單環境）
+## 快速開始（本機開發、單環境）
+
+`make dev` 用於**本機開發**：起前後端、掛載後端原始碼並開啟熱重載，直接連 `localhost`，不經任何 proxy。
 
 ```bash
-make dev     # APP_ENV=dev：前後端起來，後端熱重載（不經 Traefik）
+make dev          # APP_ENV=dev：前後端起來、後端熱重載（前景執行，佔住終端機）
 # 前端 → http://localhost:3000（會顯示 backend 回傳的環境）
 # 後端 → http://localhost:8000/health
-make down    # 停掉
+
+make dev-down     # 停止並清理：移除本機開發的容器與網路
 ```
 
 `make dev` 用 `compose.dev.yaml`：前端開 3000、後端開 8000，並掛載後端原始碼 + 熱重載。
+
+> 收工用 **`make dev-down`** 停止並清理。`make dev` 是前景執行，也可直接按 **`Ctrl+C`** 停止——但 `Ctrl+C` 只是停止容器（仍殘留為 exited 狀態），`make dev-down` 會進一步**移除**殘留的容器與網路。
+
+## `make dev` 與部署模式（`make up-*`）的差別
+
+兩者的 dev 目的完全不同——只是寫 code，用 `make dev` 就好；要把 dev/qas/prod 環境實際跑起來（給團隊連、模擬部署）才用 `make up-*`。
+
+| | `make dev` | `make up-separate-hosts` / `up-port-*` / `up-domain-*` |
+|---|-----------|--------------------------------------------------------|
+| 目的 | **本機開發**（寫 code） | **部署環境**（跑起來給人用 / 模擬部署） |
+| 環境數 | 只有 **dev 一個** | **dev / qas / prod** 可同時並存 |
+| 跑什麼 | 掛載原始碼 + **熱重載** | **建好的映像**（改 code 不反映，需重建） |
+| 執行方式 | 前景（`Ctrl+C` 停、`make dev-down` 清） | 背景 `-d`（**一定要 `make down-*`** 才會停） |
+| 怎麼連 | `localhost:3000/8000` | 依模式（80 埠 / `IP:port` / domain） |
 
 ## 改程式碼怎麼測（後端熱重載）
 
