@@ -5,9 +5,9 @@
 
 ## 部署
 
-- **實裝 deploy 步驟**：`.github/workflows/ci-cd.yml` 的 `deploy-dev/qas/prod` 目前是 `echo` placeholder。
-  換成真實部署指令（SSH pull + `docker compose up` / `kubectl apply` …），並讓 CI 連得到目標機器
-  （self-hosted runner，或 SSH + secrets）。**CD 的結構與 prod 核准閘門已就緒，只差這一步。**
+- **讓 CI 連上目標主機**：拉取式部署指令 `make deploy`（pull tested `:sha` + `up -d`，見 [cicd.md](cicd.md)）已就緒，
+  `deploy-dev/qas/prod` job 目前只**印出**該指令、尚未連線主機。補上連線方式（SSH + secrets、docker context、
+  或 self-hosted runner）讓 CI 真的在主機執行它。**CD 結構、prod 核准閘門、部署指令都已就緒，只差這一步。**
 
 ## 生產環境常見需求
 

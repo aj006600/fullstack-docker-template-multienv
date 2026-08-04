@@ -2,8 +2,9 @@ SEP  := -f compose.yaml -f deploy/compose.separate-hosts.yaml
 PORT := -f compose.yaml -f deploy/compose.same-host-by-port.yaml
 DOM  := -f compose.yaml -f deploy/compose.same-host-by-domain.yaml
 ENV  ?= dev
+MODE ?= separate-hosts
 
-.PHONY: dev dev-down \
+.PHONY: dev dev-down deploy \
 	up-separate-hosts down-separate-hosts \
 	up-port-dev up-port-qas up-port-prod down-port-dev down-port-qas down-port-prod \
 	up-domain-dev up-domain-qas up-domain-prod down-domain-dev down-domain-qas down-domain-prod \
@@ -16,8 +17,12 @@ dev:
 dev-down:
 	docker compose -f compose.yaml -f compose.dev.yaml down
 
+# ══ 部署拓撲（A/B/C 擇一）：deploy/compose.*.yaml 定義各環境「怎麼對外曝露」══
+#    up-* 一律 build 本機 code = 預覽，不是部署；真部署用下方 make deploy（拉 CI 測過的映像）。
+#    B/C 可在本機同時起三環境預覽各 env 設定；A 的多機拓撲無法單機模擬（本機一次只能預覽一個）。
+
 # ── A：separate-hosts（每環境各自一台主機，標準 80 埠）──
-# 在該環境的主機上跑，用 ENV 指定環境：make up-separate-hosts ENV=qas
+# 預覽單一環境（都綁 80，一次一個）：make up-separate-hosts ENV=qas
 up-separate-hosts:
 	docker compose $(SEP) --env-file env/.env.$(ENV) up -d --build
 down-separate-hosts:
@@ -51,6 +56,15 @@ down-domain-qas:
 	COMPOSE_PROJECT_NAME=fullstack-qas  docker compose $(DOM) --env-file env/.env.qas  down
 down-domain-prod:
 	COMPOSE_PROJECT_NAME=fullstack-prod docker compose $(DOM) --env-file env/.env.prod down
+
+# ── 部署執行（在目標主機上跑）：拉 CI 測過的不可變映像，不重 build。CI 與人工共用同一條 ──
+# 用法：make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev|qas|prod> \
+#              IMAGE=ghcr.io/<帳號>/<repo> TAG=<git-sha 或 vX.Y.Z>
+# 回溯（rollback）：同一行指令、TAG 換成舊 sha 即可
+deploy:
+	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy MODE=same-host-by-domain ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }
+	IMAGE=$(IMAGE) TAG=$(TAG) COMPOSE_PROJECT_NAME=fullstack-$(ENV) docker compose -f compose.yaml -f deploy/compose.$(MODE).yaml --env-file env/.env.$(ENV) pull
+	IMAGE=$(IMAGE) TAG=$(TAG) COMPOSE_PROJECT_NAME=fullstack-$(ENV) docker compose -f compose.yaml -f deploy/compose.$(MODE).yaml --env-file env/.env.$(ENV) up -d --no-build
 
 ps:
 	docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'

@@ -60,7 +60,7 @@ make dev-down  # 停止並清理（或直接 Ctrl+C 停止；詳見 docs/develop
 │   ├── compose.same-host-by-port.yaml
 │   └── compose.same-host-by-domain.yaml
 ├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT(B) + DOMAIN(C)
-├── Makefile                    # make dev / up-separate-hosts / up-port-* / up-domain-* / down-* / ps
+├── Makefile                    # make dev（開發）/ up-*（本機預覽）/ deploy（拉映像部署）/ down-* / ps
 ├── .github/workflows/
 │   ├── ci-cd.yml               # merge→build+dev/qas 自動；打 v* tag→prod
 │   └── cleanup.yml             # 每週清理舊映像

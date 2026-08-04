@@ -40,6 +40,23 @@ make dev-down     # 停止並清理：移除本機開發的容器與網路
 | 執行方式 | 前景（`Ctrl+C` 停、`make dev-down` 清） | 背景 `-d`（**一定要 `make down-*`** 才會停） |
 | 怎麼連 | `localhost:3000/8000` | 依模式（80 埠 / `IP:port` / domain） |
 
+## dev / qas / prod 怎麼區分——靠 env 檔，不是不同 image
+
+**三個環境跑的是同一個映像**（同一份 source `build:` 出來的），差別只在**載入哪份 `env/.env.<env>` 設定**。這正是 12-factor 核心：一份 code、一個 image、設定隨環境變。
+
+接線（以 qas 為例）：
+
+```bash
+make up-domain-qas
+#  = COMPOSE_PROJECT_NAME=fullstack-qas docker compose … --env-file env/.env.qas up -d --build
+```
+
+1. `--env-file env/.env.qas` 讀進 `env/.env.qas` → 其中 `APP_ENV=qas`
+2. `compose.yaml` 的 `env_file: env/.env.${APP_ENV:-dev}` 用這個 `APP_ENV` 解析成 `env/.env.qas`
+3. 容器載入 `env/.env.qas`（`APP_ENV`、`LOG_LEVEL`、`DOMAIN`、`HTTP_PORT`…）
+
+> 「是哪個環境」= **哪份 env 檔被載入**，不是哪個 image。CI/CD 部署時也一樣：build 一次打 `:sha`，dev/qas/prod promote **同一顆** `:sha`——這才保證「dev 測過的就是上 prod 的那顆」。
+
 ## 讓環境「變成最新」——分清楚該用哪個指令
 
 同樣叫 dev/qas/prod，但**「本機自己跑」和「CI/CD 部署」是兩個不相干的世界**，更新方式完全不同。常見誤解是「merge 一下、本機 `make up-*` 的環境就變新」——不會。
@@ -59,6 +76,8 @@ make down-domain-dev      # 收工要停時
 
 > 這些容器跟 GitHub / CI **無關**，不會因為你 merge 就自動變新。
 
+> **本機這顆映像 ≠ 最近 merge 那顆 `:sha`。** `make up-*` 建的是**你本機當前工作區的 code**（連未 commit 的改動都算），不會去 registry 拉 CI 建的映像。所以它跟「最近 merge 那顆」的關係全看你本機狀態：`git pull` 且無本機改動 → 內容相同（但仍是本機另建的一顆）；有未 commit 改動 → 比它新；本機落後 main → 比它舊。要真的跑「最近 merge 的那顆」，用拉取式部署指令 **`make deploy`**（拉 CI 建好的 `:sha`、不重 build，見下方）。
+
 ### 遠端（CI/CD 部署）→ 靠 **merge / 打 tag**
 
 推到 GitHub 後由 CI 自動建映像並部署（詳見 [cicd.md](cicd.md)）：
@@ -76,7 +95,33 @@ git tag v1.2.0 && git push origin v1.2.0    # 部署 prod（只有打 v* tag 才
 | `gh pr merge`（merge main） | **遠端 CI 部署** | **dev + qas**（不含 prod） |
 | `git tag v* && git push` | **遠端 CI 部署** | **prod**（需核准） |
 
-> 目前 CI 的 deploy 步驟是 **placeholder（只 echo）**——把它換成實際部署指令（SSH pull + `docker compose up` 等）後，上表「遠端」那兩列才會真的部署到伺服器。見 [cicd.md](cicd.md)。
+> 目前 CI 的 deploy 步驟只會**印出「該在主機上執行的 `make deploy` 指令」**，尚未真的連線主機——接上 SSH / docker context 後（見 [roadmap.md](roadmap.md)），上表「遠端」那兩列才會真的部署到伺服器。
+
+## 本機 `make up-*` 是「預覽」，真部署用 `make deploy`
+
+**在你機器上跑 `make up-*` ≠ 部署。** 它 `--build` 用你當前 code 現場建，用途是**預覽/測試「該環境的 `env/.env.*` 設定 + 曝露拓撲」**。三種拓撲的預覽能力不同：
+
+- **B（port）/ C（domain）**：可在本機**同時起三個環境**，驗證各環境設定與導流（埠配置、Traefik 路由）。
+- **A（separate-hosts）**：多機拓撲**無法單機模擬**；本機跑 `up-separate-hosts` 只能**一次預覽一個環境**（都綁 80）。
+
+用詞澄清：`deploy/compose.*.yaml` 是**曝露拓撲**（部署時用哪種對外方式）；**在本機跑它們是預覽，不等於部署**。
+
+真部署 = 在**目標主機**上拉 **CI 測過的那顆 `:sha`** 跑（不重 build），用 `make deploy`：
+
+```bash
+make deploy MODE=same-host-by-domain ENV=dev \
+    IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<git-sha>
+# MODE = separate-hosts | same-host-by-port | same-host-by-domain
+# TAG  = <git-sha>（dev/qas）或 vX.Y.Z（prod）
+```
+
+| 指令 | 職責 | 映像來源 |
+|------|------|---------|
+| `make dev` | 開發（熱重載） | 本機 code（掛載） |
+| `make up-*` | **本機預覽** env 設定 / 拓撲 | 本機 code 現場 build |
+| `make deploy` | **部署執行**（目標主機上跑；CI 與人工共用同一條） | **拉 CI 測過的 `:sha`**，不重 build |
+
+> 環境不「知道」自己該用哪顆映像——**版本（`TAG`）是傳入的**，由 promotion 流程決定：merge → CI 以該 commit 的 sha 部署 dev+qas；打 `v*` tag → prod（見 [cicd.md](cicd.md)）。人工部署 / 回溯就自己指定 `TAG`。「哪個環境跑哪顆」的紀錄 = GitHub Environments 部署歷史 + `docker ps` 的 image tag。
 
 ## 查看現在起了哪些東西（容器 / 專案）
 
@@ -172,9 +217,9 @@ docker ps --format '{{.Image}}'       # 看正在跑的容器用哪個映像
 ```bash
 git log --oneline                     # 1. 找出要回到的舊 SHA
 
-# 2. 直接拉那組舊映像（真部署時把部署指令指向這個 tag 即可）
-docker pull ghcr.io/<your-account>/fullstack-docker-template-multienv-backend:<old-sha>
-docker pull ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<old-sha>
+# 2. 在目標主機上把該環境部署回舊 SHA（一行，不重 build）
+make deploy MODE=<擇一> ENV=prod \
+    IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<old-sha>
 ```
 
 ## 版本標記（可選，讓紀錄更清楚）
