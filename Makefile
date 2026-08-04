@@ -57,7 +57,7 @@ down-domain-qas:
 down-domain-prod:
 	COMPOSE_PROJECT_NAME=fullstack-prod docker compose $(DOM) --env-file env/.env.prod down
 
-# ── Deploy（在目標主機上跑）：拉 CI 測過的不可變 image，不重 build。CI 與人工共用同一條 ──
+# ── Deploy（在目標主機上跑）：拉 CI 測過的不可變 image，不重 build。pipeline 與人工共用同一條 ──
 # 用法：make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev|qas|prod> \
 #              IMAGE=ghcr.io/<帳號>/<repo> TAG=<git-sha 或 vX.Y.Z>
 # 回溯（rollback）：同一行指令、TAG 換成舊 sha 即可
