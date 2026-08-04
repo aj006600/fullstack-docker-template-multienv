@@ -5,6 +5,9 @@
 services:
   backend:
     build: ./backend
+    # 映像名：本機 build 預設 fullstack-backend:latest；
+    # 部署（make deploy）時傳入 IMAGE=ghcr.io/<帳號>/<repo>、TAG=<sha|v*> 改拉 CI 建好的映像
+    image: ${IMAGE:-fullstack}-backend:${TAG:-latest}
     restart: unless-stopped
     # 依 APP_ENV 載入對應環境的設定檔（dev/qas/prod）
     env_file:
@@ -13,6 +16,7 @@ services:
 
   frontend:
     build: ./frontend
+    image: ${IMAGE:-fullstack}-frontend:${TAG:-latest}
     restart: unless-stopped
     depends_on:
       - backend

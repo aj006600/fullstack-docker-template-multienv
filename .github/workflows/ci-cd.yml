@@ -72,8 +72,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: dev
     steps:
-      - run: echo "部署 backend+frontend :${{ github.sha }} 到 dev"
-      # TODO: 換成實際部署指令
+      # TODO：接上 SSH / docker context 後，改為真的連上 dev 主機執行下列指令
+      - run: |
+          echo "在 dev 主機上執行："
+          echo "  make deploy MODE=<擇一> ENV=dev IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
 
   deploy-qas:
     needs: deploy-dev
@@ -81,8 +83,10 @@ jobs:
     runs-on: ubuntu-latest
     environment: qas
     steps:
-      - run: echo "部署 backend+frontend :${{ github.sha }} 到 qas"
-      # TODO: 換成實際部署指令
+      # TODO：接上 SSH / docker context 後，改為真的連上 qas 主機執行下列指令
+      - run: |
+          echo "在 qas 主機上執行："
+          echo "  make deploy MODE=<擇一> ENV=qas IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
 
   # ========== 打 v* tag：發版到 prod（兩個映像加版本標籤，不重 build）==========
   release:
@@ -113,5 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: production   # 在 GitHub 設 required reviewers → 上 prod 需人工核准
     steps:
-      - run: echo "發版 backend+frontend :${{ github.ref_name }}（= :${{ github.sha }}）到 prod"
-      # TODO: 換成實際部署指令
+      # TODO：接上 SSH / docker context 後，改為真的連上 prod 主機執行下列指令
+      - run: |
+          echo "在 prod 主機上執行："
+          echo "  make deploy MODE=<擇一> ENV=prod IMAGE=${{ env.IMAGE }} TAG=${{ github.ref_name }}"

@@ -34,7 +34,31 @@ ghcr.io/<your-account>/fullstack-docker-template-multienv-backend:<git-sha>
 ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
 ```
 
-> deploy 步驟目前是 placeholder（印出要部署的映像與環境）。promotion 結構與審核閘門已就緒，把 `echo` 換成你的實際部署指令即可（見 [docs/roadmap.md](roadmap.md)）。
+> deploy-dev/qas/prod job 目前只**印出**「該在主機上執行的 `make deploy` 指令」，尚未連線主機。promotion 結構與審核閘門已就緒，接上 SSH / docker context 讓 CI 真的在主機執行該指令即可（見 [roadmap.md](roadmap.md)）。
+
+## 部署執行：`make deploy`（CI 與人工共用）
+
+部署 = 在**目標主機**上「拉 CI 測過的不可變映像 + `up -d`」，**不在主機重 build**（在主機重 build 會破壞 build-once 的保證）。CI 與人工走**同一條指令**，不會漂移：
+
+```bash
+make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev|qas|prod> \
+    IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<git-sha 或 vX.Y.Z>
+```
+
+職責分工：
+
+```
+CI/CD（自動）    ＝ 決策 + 閘門 + 紀錄：何時部署（merge / tag）、部署哪顆（sha）、
+                   測試綠燈、prod 人工核准、Environments 部署歷史
+make deploy      ＝ 執行原語：拉指定 TAG + up。CI 呼叫它；人工只在 bootstrap／緊急／回溯時用
+make up-*        ＝ 本機預覽（build 本機 code），與部署無關
+```
+
+回溯（rollback）＝ 同一行、`TAG` 換上一版好的 sha：
+
+```bash
+make deploy MODE=<擇一> ENV=prod IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<old-sha>
+```
 
 ## 怎麼發版（打 tag 上 prod）
 
