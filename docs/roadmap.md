@@ -1,15 +1,15 @@
-# Roadmap：需要時再加（依專案需要）
+# Roadmap
 
 這個範本刻意保持精簡——給你正確的**骨架與流程**，production 細節按你的 app 再長上去。
 以下項目是**刻意留白**的（不是缺陷，是「minimal，需要再加」的範圍選擇），需要時再補：
 
-## 部署
+## Deployment
 
 - **讓 CI 連上目標主機**：拉取式部署指令 `make deploy`（pull tested `:sha` + `up -d`，見 [cicd.md](cicd.md)）已就緒，
   `deploy-dev/qas/prod` job 目前只**印出**該指令、尚未連線主機。補上連線方式（SSH + secrets、docker context、
   或 self-hosted runner）讓 CI 真的在主機執行它。**CD 結構、prod 核准閘門、部署指令都已就緒，只差這一步。**
 
-## 生產環境常見需求
+## Common production needs
 
 - **Secrets 管理**：真正的密鑰怎麼注入部署（GitHub Secrets → deploy、或 Vault / 雲端 secrets manager）。`env/` 只放非機密設定。
 - **TLS / HTTPS**：目前純 HTTP。對外真域名可讓 Traefik 自動申請 Let's Encrypt；內網用內部 CA / mkcert。
