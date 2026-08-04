@@ -51,9 +51,11 @@ make dev-down     # 停止並清理：移除本機開發的容器與網路
 ```bash
 make up-domain-dev        # 用目前本機 code 建 + 跑 dev
 # …改了 code…
-make up-domain-dev        # 再跑一次才會重建成最新（不會自己變）
-make down-domain-dev      # 停掉
+make up-domain-dev        # 再跑一次即可，不用先 down（見下）
+make down-domain-dev      # 收工要停時
 ```
+
+> **改完 code 直接重跑 `make up-*` 就好，不用先 `make down-*`**——`up -d --build` 會重建映像、並自動把舊容器換成新的（recreate，僅幾秒短暫中斷）。只有改了 **compose 結構**（網路 / volume / service）或想全新乾淨重來時，才先 `make down-*` 再 up。
 
 > 這些容器跟 GitHub / CI **無關**，不會因為你 merge 就自動變新。
 
