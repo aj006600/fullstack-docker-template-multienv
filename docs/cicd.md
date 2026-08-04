@@ -34,11 +34,11 @@ ghcr.io/<your-account>/fullstack-docker-template-multienv-backend:<git-sha>
 ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
 ```
 
-> deploy-dev/qas/prod job 目前只**印出**「該在主機上執行的 `make deploy` 指令」，尚未連線主機。promotion 結構與審核閘門已就緒，接上 SSH / docker context 讓 CI 真的在主機執行該指令即可（見 [roadmap.md](roadmap.md)）。
+> deploy-dev/qas/prod job 目前只**印出**「該在主機上執行的 `make deploy` 指令」，尚未連線主機。promotion 結構與審核閘門已就緒，接上 SSH / docker context 讓 CD（deploy job）真的在主機執行該指令即可（見 [roadmap.md](roadmap.md)）。
 
 ## Deploy execution: make deploy
 
-Deployment = 在**目標主機**上「拉 CI 測過的不可變 image + `up -d`」，**不在主機重 build**（在主機重 build 會破壞 build-once 的保證）。CI 與人工走**同一條指令**，不會漂移：
+Deployment = 在**目標主機**上「拉 CI 測過的不可變 image + `up -d`」，**不在主機重 build**（在主機重 build 會破壞 build-once 的保證）。pipeline 與人工走**同一條指令**，不會漂移：
 
 ```bash
 make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev|qas|prod> \
@@ -50,7 +50,7 @@ make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev
 ```
 CI/CD（自動）    ＝ 決策 + 閘門 + 紀錄：何時部署（merge / tag）、部署哪顆（sha）、
                    測試綠燈、prod 人工核准、Environments 部署歷史
-make deploy      ＝ 執行原語：拉指定 TAG + up。CI 呼叫它；人工只在 bootstrap／緊急／rollback 時用
+make deploy      ＝ 執行原語：拉指定 TAG + up。CD（deploy job）呼叫它；人工只在 bootstrap／緊急／rollback 時用
 make up-*        ＝ 本機 preview（build 本機 code），與 deployment 無關
 ```
 

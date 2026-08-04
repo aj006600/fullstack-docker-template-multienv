@@ -27,7 +27,7 @@ make up-domain-qas
 |------|------|-----------|
 | `make dev` | **Development**（寫 code、hot reload） | 本機 code（掛載） |
 | `make up-*` | **Preview**：本機預覽 env 設定 / exposure topology | 本機 code 現場 build |
-| `make deploy` | **Deployment**：目標主機上執行（CI 與人工共用同一條） | **拉 CI 測過的 `:sha`**，不重 build |
+| `make deploy` | **Deployment**：目標主機上執行（pipeline 與人工共用同一條） | **拉 CI 測過的 `:sha`**，不重 build |
 
 `make dev` 和 `make up-*` 的差別：
 
@@ -82,7 +82,7 @@ make down-domain-dev      # 收工要停時
 
 ### Remote (CI/CD): merge / git tag
 
-推到 GitHub 後由 CI 自動 build image 並部署（詳見 [cicd.md](cicd.md)）：
+推到 GitHub 後由 pipeline 自動 build image（CI）並部署（CD）（詳見 [cicd.md](cicd.md)）：
 
 ```bash
 gh pr merge --squash                        # 部署 dev + qas（merge 到 main 自動觸發，不含 prod）
@@ -94,7 +94,7 @@ git tag v1.2.0 && git push origin v1.2.0    # 部署 prod（只有打 v* tag 才
 | 指令 | 更新哪裡 | 更新哪個環境 |
 |------|---------|-------------|
 | `make up-*`（**重跑**） | 你**本機** | 你指定的那一個 |
-| `gh pr merge`（merge main） | **遠端 CI 部署** | **dev + qas**（不含 prod） |
-| `git tag v* && git push` | **遠端 CI 部署** | **prod**（需核准） |
+| `gh pr merge`（merge main） | **遠端 CD 部署** | **dev + qas**（不含 prod） |
+| `git tag v* && git push` | **遠端 CD 部署** | **prod**（需核准） |
 
-> 目前 CI 的 deploy job 只會**印出「該在主機上執行的 `make deploy` 指令」**，尚未真的連線主機——接上 SSH / docker context 後（見 [roadmap.md](roadmap.md)），上表「遠端」那兩列才會真的部署到伺服器。
+> 目前 pipeline 的 deploy job（CD） 只會**印出「該在主機上執行的 `make deploy` 指令」**，尚未真的連線主機——接上 SSH / docker context 後（見 [roadmap.md](roadmap.md)），上表「遠端」那兩列才會真的部署到伺服器。

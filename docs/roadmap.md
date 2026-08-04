@@ -5,9 +5,9 @@
 
 ## Deployment
 
-- **讓 CI 連上目標主機**：拉取式部署指令 `make deploy`（pull tested `:sha` + `up -d`，見 [cicd.md](cicd.md)）已就緒，
+- **讓 CD（deploy job）連上目標主機**：拉取式部署指令 `make deploy`（pull tested `:sha` + `up -d`，見 [cicd.md](cicd.md)）已就緒，
   `deploy-dev/qas/prod` job 目前只**印出**該指令、尚未連線主機。補上連線方式（SSH + secrets、docker context、
-  或 self-hosted runner）讓 CI 真的在主機執行它。**CD 結構、prod 核准閘門、部署指令都已就緒，只差這一步。**
+  或 self-hosted runner）讓 CD 真的在主機執行它。**CD 結構、prod 核准閘門、部署指令都已就緒，只差這一步。**
 
 ## Common production needs
 
