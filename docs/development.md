@@ -76,6 +76,24 @@ git tag v1.2.0 && git push origin v1.2.0    # 部署 prod（只有打 v* tag 才
 
 > 目前 CI 的 deploy 步驟是 **placeholder（只 echo）**——把它換成實際部署指令（SSH pull + `docker compose up` 等）後，上表「遠端」那兩列才會真的部署到伺服器。見 [cicd.md](cicd.md)。
 
+## 查看現在起了哪些東西（容器 / 專案）
+
+```bash
+docker compose ls        # 有哪些 compose 專案在跑（一眼看出起了哪些環境/模式）
+make ps                  # 模板內建：正在跑的容器（名稱 / 狀態 / 埠）
+docker ps                # 同上，未美化
+```
+
+看更完整（含停掉殘留、網路）：
+
+```bash
+docker ps -a             # 連「停掉但殘留」的容器也列（exited 狀態）
+docker compose ls -a     # 連停掉的 compose 專案也列
+docker network ls        # 有哪些網路（proxy、各專案網路）
+```
+
+> 每個部署環境是獨立的 compose 專案（`fullstack-dev` / `fullstack-qas` / `fullstack-prod`）；`make dev` 則以資料夾名當專案名。用 `docker compose ls` 對照專案名，就知道哪個模式/環境正開著。
+
 ## 改程式碼怎麼測（後端熱重載）
 
 `make dev` 已掛載後端原始碼並開啟 `uvicorn --reload`，所以測試一個改動**不需進容器、也不需重建**：
