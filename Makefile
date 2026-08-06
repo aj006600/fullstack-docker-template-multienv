@@ -13,18 +13,17 @@ PROJECT := COMPOSE_PROJECT_NAME=fullstack-$(ENV)
 guard = @test -f deploy/compose.$(MODE).yaml || { echo "MODE=$(MODE) 無效。可用：separate-hosts | same-host-by-port | same-host-by-domain"; exit 1; }; \
 	test -f env/.env.$(ENV) || { echo "ENV=$(ENV) 無效。可用：dev | qas | prod"; exit 1; }
 
-.PHONY: help dev dev-down test lint format up down deploy ps
+.PHONY: help dev dev-down test lint format down deploy ps
 
 help:
-	@echo "Development"
-	@echo "  make dev                          本機開發：hot reload、localhost:3000 / :8000（前景執行）"
+	@echo "Development（在你的開發機上）"
+	@echo "  make dev                          hot reload、localhost:3000 / :8000（前景執行）"
 	@echo "  make dev-down                     停止並清理 make dev 的 container 與 network"
 	@echo "  make test | lint | format         跑在 dev stage 容器裡，與 CI 同一份 uv.lock"
 	@echo ""
-	@echo "Deployment（兩者都是部署，差別只在 image 從哪來）"
-	@echo "  make up      MODE=… ENV=…                 用本機當前 code 現場 build"
+	@echo "Deployment（在目標主機上）"
 	@echo "  make deploy  MODE=… ENV=… IMAGE=… TAG=…   拉 CI 測過的映像，不重 build"
-	@echo "  make down    MODE=… ENV=…                 停止該環境（up 與 deploy 共用）"
+	@echo "  make down    MODE=… ENV=…                 停止該環境"
 	@echo ""
 	@echo "  MODE = separate-hosts | same-host-by-port | same-host-by-domain   (預設 $(MODE))"
 	@echo "  ENV  = dev | qas | prod                                          (預設 $(ENV))"
@@ -52,23 +51,19 @@ format:
 	docker compose $(DEV) run --build --rm backend ruff format .
 
 # ── Deployment ──
-# up 與 deploy 都是部署，差別只在 image 來源：up 用本機當前 code 現場 build，
-# deploy 拉 CI 測過的不可變映像（在目標主機重 build 會破壞 build-once 的保證）。
-# 兩者用同一組 project 名，所以同一個 down 都收得掉。詳見 docs/deployment.md。
-up:
-	$(guard)
-	$(PROJECT) docker compose $(STACK) up -d --build
-
-down:
-	$(guard)
-	$(PROJECT) docker compose $(STACK) down
-
+# 部署只有一條路：在目標主機上拉 CI 測過的不可變映像。刻意不提供「本機 build 後部署」
+# 的 target——在主機上重 build 會拉到不同的 base layer 或相依，破壞「測過的就是上線的」。
+# 臨時要在開發機上跑某個 environment，見 docs/deployment.md 的手動指令。
 # rollback = TAG 換回舊的 sha
 deploy:
 	$(guard)
 	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy MODE=same-host-by-domain ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }
 	IMAGE=$(IMAGE) TAG=$(TAG) $(PROJECT) docker compose $(STACK) pull
 	IMAGE=$(IMAGE) TAG=$(TAG) $(PROJECT) docker compose $(STACK) up -d --no-build
+
+down:
+	$(guard)
+	$(PROJECT) docker compose $(STACK) down
 
 ps:
 	docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
