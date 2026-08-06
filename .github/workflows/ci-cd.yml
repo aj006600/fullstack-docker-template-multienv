@@ -9,6 +9,13 @@ on:
   pull_request:
     branches: [main]
 
+# 同一個 ref 一次只跑一條 pipeline。連續 merge 時後者排隊等前者結束——
+# 否則 sha A 的 deploy 可能在 sha B 之後才完成，環境最後跑到的是舊版。
+# PR 例外：新 commit 直接取消舊 run（PR 不會部署，沒有中斷部署的風險）。
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   IMAGE: ghcr.io/${{ github.repository }}
 
