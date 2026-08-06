@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "pytest>=8.3.4",
     "httpx>=0.28.1",
+    "ruff>=0.16.1",
 ]
 
 [tool.uv]
@@ -20,3 +21,9 @@ package = false
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+
+[tool.ruff.lint]
+# E/F=基礎錯誤、I=import 排序、UP=現代語法(PEP 585/604)、N=PEP8 命名、B=bugbear 常見陷阱、PT=pytest 風格
+select = ["E", "F", "I", "UP", "N", "B", "PT"]
+# B008(勿在參數預設值呼叫函數)與 FastAPI 的 Depends() 寫法衝突,FastAPI 專案標準配置
+ignore = ["B008"]

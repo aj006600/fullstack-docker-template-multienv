@@ -46,9 +46,19 @@ curl http://localhost:8000/api/message      # 或開瀏覽器 http://localhost:3
 - **前端在 `make dev` 不會 hot reload**（它是 build 好的 nginx image）；前端要即時開發請用下方「Working without containers」的 `npm run dev`（Vite HMR，`:5173`，跑一次讓它開著、存檔即自動更新）。
 - **Preview / deploy（`make up-*`）不掛載 source code**，跑的是 build 好的 image——改本機程式碼不會反映，需 rebuild（重跑 `make up-*` 即可，見 [concepts.md](concepts.md)）。
 
+## Tests & lint
+
+```bash
+make test      # pytest（後端）
+make lint      # ruff check
+make format    # ruff format
+```
+
+三者都跑在 Dockerfile 的 **dev stage** 容器裡（含 pytest / ruff），與 CI 用同一份 `uv.lock`；`--build` 已內建，改了 `pyproject.toml` / `uv.lock` 也會自動生效。CI 在 PR 時會以同樣的檢查把關（ruff check + format --check + pytest），本機先跑省一輪紅燈。
+
 ## Entering containers (docker exec)
 
-承上，改程式碼靠 hot reload 即可、**不需進 container**。進 container 是為了「在 container 內執行指令 / 檢查 / 除錯」——例如查看環境變數、執行一次性腳本、確認相依安裝，或在 container 的環境裡跑測試（`docker exec -it <後端容器名> uv run pytest`）。
+承上，改程式碼靠 hot reload 即可、**不需進 container**；跑測試 / lint 用上方的 `make test` / `make lint` 也免進。進 container 是為了「在 container 內執行指令 / 檢查 / 除錯」——例如查看環境變數、執行一次性腳本、確認相依安裝。
 
 用 compose 的 **service 名**進入（免查容器名，在專案根目錄執行）：
 
@@ -63,13 +73,9 @@ docker compose -f compose.yaml -f compose.dev.yaml exec frontend sh    # 前端�
 docker exec -it <容器名> bash    # 後端；前端用 sh
 ```
 
-Container 內：後端工作目錄為 `/app`、程式在 `/app/app`、venv 在 `/app/.venv`（`uvicorn`、`pytest` 等已在 PATH）。**後端以非 root 的 `appuser` 執行**（前端 nginx 則以預設 root 執行）。後端需要安裝系統套件時，改用 root 進入：
+Container 內：後端工作目錄為 `/app`、程式在 `/app/app`、venv 在 `/app/.venv`（`uvicorn`、`pytest` 等已在 PATH）。`make dev` 的後端容器跑 Dockerfile 的 **dev stage、以 root 執行**（開發便利、可直接裝系統套件）；部署用的 **runtime stage 才以非 root `appuser` 執行**（前端 nginx 則一律預設 root）。
 
-```bash
-docker compose -f compose.yaml -f compose.dev.yaml exec -u root backend bash
-```
-
-> 上述指令針對 `make dev`。若跑的是 preview（`make up-*`），各環境 project 名不同（如 `fullstack-dev`），用 `docker ps` 查容器名後以 `docker exec -it <容器名> …` 進入最直接。
+> 上述指令針對 `make dev`。若跑的是 preview（`make up-*`，runtime stage），各環境 project 名不同（如 `fullstack-dev`），用 `docker ps` 查容器名後以 `docker exec -it <容器名> …` 進入；容器內是 `appuser`，需要 root 時加 `-u root`。
 
 ## Working without containers
 

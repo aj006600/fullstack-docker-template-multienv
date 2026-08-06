@@ -1,18 +1,25 @@
 # syntax=docker/dockerfile:1
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
-
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS base
 WORKDIR /app
-
-# 先裝相依，善用 Docker layer 快取（相依未變則不重裝）
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
-
-COPY app ./app
 ENV PATH="/app/.venv/bin:$PATH"
 
-# 非 root 執行
+# dev：含 dev 相依（pytest、ruff），只給本機用，永不部署。
+# 「dev stage」與「APP_ENV=dev 環境」是兩個維度：前者決定 image 內容，後者決定載入哪份 env/.env.*
+FROM base AS dev
+RUN uv sync --frozen
+COPY app ./app
+COPY tests ./tests
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+
+# runtime：出貨用，dev/qas/prod 三環境共用同一顆。
+# 必須留在最後：CI 與 make up-* 都沒指定 --target，Docker 建「最後一個」stage；
+# 調換順序會讓裝了測試工具的 dev image 被推上 production。
+FROM base AS runtime
+RUN uv sync --frozen --no-dev
+COPY app ./app
 RUN useradd --create-home --uid 1000 appuser
 USER appuser
-
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

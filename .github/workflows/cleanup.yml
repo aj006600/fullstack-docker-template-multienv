@@ -1,11 +1,10 @@
 name: Cleanup old images
 
-# 每週清理舊映像：:sha 建置保留最近 10 個、保護 latest 與 v* 正式版、刪 untagged。
 # 想先預覽會刪什麼：把 dry-run 設 true。
 on:
   schedule:
     - cron: '0 3 * * 1'      # 每週一 03:00 UTC
-  workflow_dispatch:          # 也可手動觸發
+  workflow_dispatch:
 
 jobs:
   cleanup:
@@ -17,7 +16,7 @@ jobs:
         with:
           # 兩個服務各一個 package；repo 改名時要一起改
           packages: fullstack-docker-template-multienv-backend,fullstack-docker-template-multienv-frontend
-          keep-n-tagged: 10          # :sha 建置保留最近 10 個
-          exclude-tags: latest,v*    # 保護 latest 與所有 v* 正式版
-          delete-untagged: true      # 刪 untagged 孤兒版本
+          keep-n-tagged: 10          # 只算 :sha 建置（latest 與 v* 在 exclude-tags 保護，不佔額度）
+          exclude-tags: latest,v*
+          delete-untagged: true
           dry-run: false
