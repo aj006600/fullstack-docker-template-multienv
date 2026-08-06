@@ -51,7 +51,6 @@ make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev
 CI/CD（自動）    ＝ 決策 + 閘門 + 紀錄：何時部署（merge / tag）、部署哪顆（sha）、
                    測試綠燈、prod 人工核准、Environments 部署歷史
 make deploy      ＝ 執行原語：拉指定 TAG + up。CD（deploy job）呼叫它；人工只在 bootstrap／緊急／rollback 時用
-make up          ＝ 同樣是部署，但用本機當前 code 現場 build，不經 registry（見 concepts.md）
 ```
 
 ## Release to prod (git tag)

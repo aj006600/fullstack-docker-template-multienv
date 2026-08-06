@@ -36,13 +36,15 @@ make help      # 所有指令與參數
 
 ## Deployment
 
-部署 = 在某台主機上讓某個 environment 跑起來。兩個指令，差別只在 **image 從哪來**：
+部署在**目標主機**（amd64 Linux）上執行，拉 CI 測過的不可變映像，不重 build：
 
 ```bash
-make up     MODE=<mode> ENV=<env>                   # 用本機當前 code 現場 build
-make deploy MODE=<mode> ENV=<env> IMAGE=… TAG=…     # 拉 CI 測過的映像，不重 build
-make down   MODE=<mode> ENV=<env>                   # 停止（兩者共用）
+make deploy MODE=<mode> ENV=<env> IMAGE=… TAG=…     # 拉指定版本並啟動
+make down   MODE=<mode> ENV=<env>                   # 停止
 ```
+
+> 刻意只有這一條部署路徑：在主機上從原始碼 build 會破壞「dev 測過的就是上 prod 的那顆」。
+> 開發機請用 `make dev`；要在開發機上臨時跑某個 environment，見 [docs/deployment.md](docs/deployment.md)。
 
 `MODE` 決定 **topology**——怎麼對外曝露。**選一種用**，不是同時跑。
 
@@ -72,7 +74,7 @@ make down   MODE=<mode> ENV=<env>                   # 停止（兩者共用）
 │   ├── compose.same-host-by-port.yaml
 │   └── compose.same-host-by-domain.yaml
 ├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT + DOMAIN
-├── Makefile                    # dev / test·lint·format / up · deploy · down / ps / help
+├── Makefile                    # dev / test·lint·format / deploy · down / ps / help
 ├── CONTEXT.md                  # 術語表（唯一定義處）
 ├── .github/workflows/
 │   ├── ci-cd.yml               # merge→build+dev/qas 自動；打 v* tag→prod

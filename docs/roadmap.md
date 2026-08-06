@@ -1,7 +1,18 @@
 # Roadmap
 
 這個範本刻意保持精簡——給你正確的**骨架與流程**，production 細節按你的 app 再長上去。
-以下項目是**刻意留白**的（不是缺陷，是「minimal，需要再加」的範圍選擇），需要時再補：
+以下項目是**刻意留白**的（不是缺陷，是「minimal，需要再加」的範圍選擇），需要時再補。
+
+## Known limitations
+
+這一節與其他節不同：**不是「還沒做」，是已經決定不做**，因為它們的成本會轉嫁給每個使用這個範本的人。
+
+- **映像只有 amd64**：CI 在 GitHub 的預設機器（amd64）上建，不做多平台建置。
+  **後果：Apple Silicon 的開發機無法用 `make deploy`**（會出現 `no matching manifest for linux/arm64`）——
+  開發機請用 `make dev`，部署目標請用 amd64 Linux 主機。
+  之所以不補：QEMU 模擬會讓每個 fork 的人每次 merge 都多等數分鐘（即使他從不碰 arm64），
+  改用原生 arm64 runner 則要多一組 build matrix 與 manifest 合併 job。
+  真的要部署到 arm64 主機（AWS Graviton）時再加，改的只有 `build` job。
 
 ## Deployment
 
@@ -18,7 +29,6 @@
 - **資料庫 / stateful 服務**：目前無狀態。加 compose 的 db 服務 + migration + 備份策略。
 - **可觀測性**：結構化 log、metrics、tracing。
 - **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
-- **多架構映像**：目前只 build amd64。要跑 arm64（Apple Silicon / AWS Graviton）需 buildx 多平台建置。
 
 ## Developer tooling
 

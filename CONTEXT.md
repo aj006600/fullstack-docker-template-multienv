@@ -27,13 +27,9 @@ runtime stage 出貨、非 root；dev stage 含 pytest 與 ruff，只給本機�
 ### Deployment
 
 **Deployment**:
-在某台主機上讓某個 environment 跑起來。`make up` 與 `make deploy` **都是** deployment，
-差別只在 image provenance。
-_Avoid_: preview（本 repo 不使用此詞——它曾被用來暗示 `make up` 比較次等，但兩者都是真的部署）
-
-**Image provenance**:
-這次 deployment 的 image 從哪來。只有兩個值：**build**（`make up`，用本機當前 code 現場建）
-與 **registry**（`make deploy`，拉 CI 測過的不可變映像）。
+在**目標主機**上讓某個 environment 跑起來，用的一定是 CI 測過的 registry 映像（`make deploy`）。
+在主機上從原始碼 build **不算** deployment，也刻意沒有對應的指令。
+_Avoid_: preview、部署到本機（`make dev` 是開發，不是 deployment）
 
 **Topology**:
 這個 environment 怎麼對外曝露。三選一：`separate-hosts`（獨佔主機、綁 80）、
