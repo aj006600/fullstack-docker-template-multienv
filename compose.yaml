@@ -1,18 +1,13 @@
-# Base：只定義服務與內部接線，不決定「對外怎麼曝露」。
-# 對外方式由 override 決定：
-#   - 本機開發   → compose.dev.yaml       （直接開 localhost 埠、熱重載）
-#   - 部署到主機 → deploy/compose.*.yaml   （三種部署模式擇一）
+# Base：只定義服務與內部接線；對外曝露由 override 決定（compose.dev.yaml / deploy/compose.*.yaml）。
 services:
   backend:
     build: ./backend
-    # 映像名：本機 build 預設 fullstack-backend:latest；
-    # 部署（make deploy）時傳入 IMAGE=ghcr.io/<帳號>/<repo>、TAG=<sha|v*> 改拉 CI 建好的映像
+    # 本機 build 預設 fullstack-backend:latest；make deploy 傳入 IMAGE/TAG 改拉 CI 建好的映像
     image: ${IMAGE:-fullstack}-backend:${TAG:-latest}
     restart: unless-stopped
-    # 依 APP_ENV 載入對應環境的設定檔（dev/qas/prod）
     env_file:
       - env/.env.${APP_ENV:-dev}
-    # 不對外開埠；由同專案的 frontend 以服務名 backend 連線
+    # 不對外開埠；由 frontend 的 nginx 以服務名 backend 代理 /api
 
   frontend:
     build: ./frontend

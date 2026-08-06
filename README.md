@@ -47,7 +47,7 @@ make dev-down  # 停止並清理（或直接 Ctrl+C 停止；詳見 docs/develop
 
 ```
 .
-├── backend/                    # FastAPI + uv（單階段、非 root）
+├── backend/                    # FastAPI + uv（多階段：dev 含測試工具、runtime 出貨非 root）
 │   ├── app/main.py             # /health、/api/message（回傳目前環境）
 │   ├── app/config.py           # pydantic-settings：從環境變數讀設定
 │   ├── tests/  ·  pyproject.toml · uv.lock  ·  Dockerfile
@@ -61,7 +61,7 @@ make dev-down  # 停止並清理（或直接 Ctrl+C 停止；詳見 docs/develop
 │   ├── compose.same-host-by-port.yaml
 │   └── compose.same-host-by-domain.yaml
 ├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT(B) + DOMAIN(C)
-├── Makefile                    # make dev（開發）/ up-*（本機 preview）/ deploy（拉 image 部署）/ down-* / ps
+├── Makefile                    # make dev（開發）/ test·lint·format（品質）/ up-*（preview）/ deploy（拉 image 部署）/ down-* / ps
 ├── .github/workflows/
 │   ├── ci-cd.yml               # merge→build+dev/qas 自動；打 v* tag→prod
 │   └── cleanup.yml             # 每週清理舊 image

@@ -18,3 +18,15 @@
 - **可觀測性**：結構化 log、metrics、tracing。
 - **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
 - **多架構映像**：目前只 build amd64。要跑 arm64（Apple Silicon / AWS Graviton）需 buildx 多平台建置。
+
+## 開發工具鏈
+
+後端已有 ruff（lint + format，select E/F/I/UP/N/B/PT）與跑在 dev stage 容器裡的 `make test`。以下刻意延後：
+
+- **CI 強化**：workflow 加 `concurrency` 設定（連續 merge 時取消進行中的舊 pipeline）；
+  `.github/dependabot.yml` 自動更新相依與 Actions 版本（同見上方「安全掃描」）。
+- **前端測試框架**：`frontend/` 目前無測試設施（無 vitest / testing-library），CI 只 `npm run build`。
+  等前端長出真正邏輯再導入。
+- **前端 TypeScript**：目前純 JS。若前端會發展成真正的 Web UI，越早轉換成本越低。
+- **後端型別檢查**：目前無 mypy。code 量還小時導入 `strict` 模式最便宜。
+

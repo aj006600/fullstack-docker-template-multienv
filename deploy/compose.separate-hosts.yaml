@@ -1,6 +1,4 @@
-# A：separate-hosts（最佳實踐）——每個環境各自一台主機。
-# 在該環境的主機上跑單一環境，前端用標準 80 埠（獨佔主機，不會撞埠）。
-# 後端不對外，由前端 nginx 內部代理 /api。
+# A：separate-hosts——每環境獨佔一台主機，前端綁標準 80 埠（見 docs/deploy-separate-hosts.md）。
 services:
   frontend:
     ports:
