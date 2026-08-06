@@ -21,7 +21,7 @@
 - **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
 - **多架構映像**：目前只 build amd64。要跑 arm64（Apple Silicon / AWS Graviton）需 buildx 多平台建置。
 
-## 開發工具鏈
+## Developer tooling
 
 後端已有 ruff（lint + format，select E/F/I/UP/N/B/PT）與跑在 dev stage 容器裡的 `make test`。以下刻意延後：
 

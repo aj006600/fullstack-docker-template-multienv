@@ -1,16 +1,10 @@
 # Local Development
 
-[← README](../README.md) ｜ 觀念先修：[concepts.md](concepts.md)
+[← README](../README.md) ｜ 觀念先修：[concepts.md](concepts.md) ｜ 詞彙：[CONTEXT.md](../CONTEXT.md)
 
-## How frontend talks to backend
-
-瀏覽器只打 `frontend`，`/api/*` 由 frontend 的 nginx 反向代理到 `backend`（同源，後端免處理 CORS）。
-`/api/message` 會回傳目前環境，所以切換 `APP_ENV` 時前端顯示的環境也會跟著變。
-
-```
-瀏覽器 → frontend(nginx:80) ──/api/──▶ backend(uvicorn:8000)
-                          └─ 其他路徑 = SPA 靜態檔
-```
+前後端怎麼溝通見 [README 的架構圖](../README.md#quickstart)：瀏覽器只打 frontend，`/api/*` 由 nginx
+反向代理到 backend（同源、後端免處理 CORS）。`/api/message` 會回傳目前 environment，所以切換 `APP_ENV`
+時前端顯示的環境也會跟著變。
 
 ## Quickstart
 
@@ -44,7 +38,7 @@ curl http://localhost:8000/api/message      # 或開瀏覽器 http://localhost:3
 
 - **Hot reload 只適用「後端 + `make dev`」**（只有這個組合掛載了 source code + `--reload`）。
 - **前端在 `make dev` 不會 hot reload**（它是 build 好的 nginx image）；前端要即時開發請用下方「Working without containers」的 `npm run dev`（Vite HMR，`:5173`，跑一次讓它開著、存檔即自動更新）。
-- **Preview / deploy（`make up-*`）不掛載 source code**，跑的是 build 好的 image——改本機程式碼不會反映，需 rebuild（重跑 `make up-*` 即可，見 [concepts.md](concepts.md)）。
+- **部署（`make up` / `make deploy`）不掛載 source code**，跑的是 build 好的 image——改本機程式碼不會反映，需重跑 `make up`（見 [concepts.md](concepts.md)）。
 
 ## Tests & lint
 
@@ -75,7 +69,7 @@ docker exec -it <容器名> bash    # 後端；前端用 sh
 
 Container 內：後端工作目錄為 `/app`、程式在 `/app/app`、venv 在 `/app/.venv`（`uvicorn`、`pytest` 等已在 PATH）。`make dev` 的後端容器跑 Dockerfile 的 **dev stage、以 root 執行**（開發便利、可直接裝系統套件）；部署用的 **runtime stage 才以非 root `appuser` 執行**（前端 nginx 則一律預設 root）。
 
-> 上述指令針對 `make dev`。若跑的是 preview（`make up-*`，runtime stage），各環境 project 名不同（如 `fullstack-dev`），用 `docker ps` 查容器名後以 `docker exec -it <容器名> …` 進入；容器內是 `appuser`，需要 root 時加 `-u root`。
+> 上述指令針對 `make dev`。若跑的是部署（`make up` / `make deploy`，runtime stage），各 environment 的 project 名不同（`fullstack-dev` / `fullstack-qas` / `fullstack-prod`），用 `docker ps` 查容器名後以 `docker exec -it <容器名> …` 進入；容器內是 `appuser`，需要 root 時加 `-u root`。
 
 ## Working without containers
 
@@ -107,4 +101,4 @@ docker compose ls -a     # 連停掉的 compose project 也列
 docker network ls        # 有哪些 network（proxy、各 project network）
 ```
 
-> 每個 preview/deploy 環境是獨立的 compose project（`fullstack-dev` / `fullstack-qas` / `fullstack-prod`）；`make dev` 則以資料夾名當 project 名。用 `docker compose ls` 對照 project 名，就知道哪個 topology/環境正開著。
+> 每個部署起來的 environment 是獨立的 compose project——`make up` 與 `make deploy` 都用 `fullstack-<env>`（`fullstack-dev` / `fullstack-qas` / `fullstack-prod`），所以同一個 `make down` 都收得掉；`make dev` 則以資料夾名當 project 名，與它們互不干擾。用 `docker compose ls` 對照 project 名，就知道哪個 environment 正開著。
