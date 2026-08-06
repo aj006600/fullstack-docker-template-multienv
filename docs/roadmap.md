@@ -16,7 +16,6 @@
 - **Secrets 管理**：真正的密鑰怎麼注入部署（GitHub Secrets → deploy、或 Vault / 雲端 secrets manager）。`env/` 只放非機密設定。
 - **TLS / HTTPS**：目前純 HTTP。對外真域名可讓 Traefik 自動申請 Let's Encrypt；內網用內部 CA / mkcert。
 - **資料庫 / stateful 服務**：目前無狀態。加 compose 的 db 服務 + migration + 備份策略。
-- **健康檢查**：後端有 `/health`，但 Dockerfile / compose 尚未接 `HEALTHCHECK` 去用它（部署到 LB / orchestrator 時需要）。
 - **可觀測性**：結構化 log、metrics、tracing。
 - **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
 - **多架構映像**：目前只 build amd64。要跑 arm64（Apple Silicon / AWS Graviton）需 buildx 多平台建置。
@@ -25,10 +24,11 @@
 
 後端已有 ruff（lint + format，select E/F/I/UP/N/B/PT）與跑在 dev stage 容器裡的 `make test`。以下刻意延後：
 
-- **CI 強化**：workflow 加 `concurrency` 設定（連續 merge 時取消進行中的舊 pipeline）；
-  `.github/dependabot.yml` 自動更新相依與 Actions 版本（同見上方「安全掃描」）。
-- **前端測試框架**：`frontend/` 目前無測試設施（無 vitest / testing-library），CI 只 `npm run build`。
-  等前端長出真正邏輯再導入。
+- **相依自動更新**：`.github/dependabot.yml` 自動更新相依與 Actions 版本（同見上方「安全掃描」）。
+  後端用 `==` 精確 pin，沒有自動更新機制就會慢慢腐化。
+- **前端品質把關**：`frontend/` **刻意**不設 lint / format / 測試——後端有 ruff（含 CI 的 `format --check`）
+  與 pytest，前端 CI 只跑 `npm run build`。這個不對稱是有意識的取捨：前端目前只有一個展示用元件，
+  等它長出真正的邏輯，再一次導入 eslint + vitest 比較划算（導入時記得同步 CI 與本機 `make` target）。
 - **前端 TypeScript**：目前純 JS。若前端會發展成真正的 Web UI，越早轉換成本越低。
 - **後端型別檢查**：目前無 mypy。code 量還小時導入 `strict` 模式最便宜。
 

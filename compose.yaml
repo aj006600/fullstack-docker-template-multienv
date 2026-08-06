@@ -8,10 +8,20 @@ services:
     env_file:
       - env/.env.${APP_ENV:-dev}
     # 不對外開埠；由 frontend 的 nginx 以服務名 backend 代理 /api
+    # 用 python 而非 curl：bookworm-slim 沒有 curl/wget
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
 
   frontend:
     build: ./frontend
     image: ${IMAGE:-fullstack}-frontend:${TAG:-latest}
     restart: unless-stopped
+    # 等 backend 真的能服務再起 nginx；只等「container 啟動」的話，
+    # uvicorn 尚未 listen 的那段時間 /api 會回 502
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
