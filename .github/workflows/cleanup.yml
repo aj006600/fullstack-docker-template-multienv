@@ -16,7 +16,7 @@ jobs:
         with:
           # 兩個服務各一個 package；repo 改名時要一起改
           packages: fullstack-docker-template-multienv-backend,fullstack-docker-template-multienv-frontend
-          keep-n-tagged: 10          # 只算 :sha 建置（latest 與 v* 在 exclude-tags 保護，不佔額度）
-          exclude-tags: latest,v*
+          keep-n-tagged: 10          # 只算 :sha 建置（v* 在 exclude-tags 保護，不佔額度）
+          exclude-tags: v*           # 正式版永不刪除——rollback 才有得回
           delete-untagged: true
           dry-run: false
