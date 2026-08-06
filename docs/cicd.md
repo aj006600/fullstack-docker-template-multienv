@@ -14,7 +14,7 @@ gh pr merge --squash    # CI 綠燈後自己就能 merge（approvals = 0）
 ```
 
 - PR 觸發測試；merge 到 main 才 build + 部署 **dev/qas**；打 `v*` tag 才上 **prod**
-- 純文件變更（`.md`、`docs/**`）靠 `paths-ignore` 跳過 build/deploy
+- main 上**每個** commit 都會 build 出 `:sha`（含純文件 commit）——promote、rollback、`git bisect` 都依賴這個不變量。重複建置的成本由 build cache 吸收
 
 ## Build-once promotion
 
@@ -64,8 +64,7 @@ git push origin v1.2.0                 # 3. 推 tag → 觸發 prod 發版
 
 會把測試過的 `:sha` **加上版本 tag `:v1.2.0`（不重 build）**，再部署 prod。
 
-> - `production` environment 若設了 required reviewers，發版會**停下等人核准**。
-> - tag 要打在**已在 main、已 build** 的 commit（否則找不到對應的 `:sha` image）。
+> `production` environment 若設了 required reviewers，發版會**停下等人核准**。
 
 ## Which version is running
 
@@ -75,6 +74,7 @@ Image 用 **git SHA** 當 tag，所以「哪個環境跑哪一版」= 「跑哪�
 git log --oneline -10                 # 看最近的 commit 與其 SHA
 git show <sha>                        # 看某個 SHA 改了什麼
 git checkout <sha>                    # 切過去看該版 code（看完 git switch - 回來）
+git checkout v1.0.0                   # 或用版本 tag 切到某次發版的 code
 
 docker ps --format '{{.Image}}'       # 看正在跑的 container 用哪顆 image
 ```
@@ -93,16 +93,9 @@ make deploy MODE=<擇一> ENV=prod \
     IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<old-sha>
 ```
 
-## Version tags (optional)
-
-```bash
-git tag v1.0.0 && git push origin v1.0.0   # 發版時打 tag（也會觸發 prod 發版，見上方 Release）
-git checkout v1.0.0                          # 之後要看該版 code
-```
-
 ## Image cleanup
 
-`.github/workflows/cleanup.yml` 每週跑一次——兩個 service 的 `:sha` 建置各**只留最近 10 個**、**保護 `latest` 與 `v*` 正式版**、刪 untagged。避免 image 無限累積。
+`.github/workflows/cleanup.yml` 每週跑一次——兩個 service 的 `:sha` 建置各**只留最近 10 個**、**保護 `v*` 正式版**（永不刪除，rollback 才有得回）、刪 untagged。避免 image 無限累積。
 
 ## One-time GitHub setup
 
