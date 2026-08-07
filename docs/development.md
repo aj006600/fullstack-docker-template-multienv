@@ -46,9 +46,12 @@ curl http://localhost:8000/api/message      # 或開瀏覽器 http://localhost:3
 make test      # pytest（後端）
 make lint      # ruff check
 make format    # ruff format
+make check     # 驗證部署設定（不啟動容器）
 ```
 
-三者都跑在 Dockerfile 的 **dev stage** 容器裡（含 pytest / ruff），與 CI 用同一份 `uv.lock`；`--build` 已內建，改了 `pyproject.toml` / `uv.lock` 也會自動生效。CI 在 PR 時會以同樣的檢查把關（ruff check + format --check + pytest），本機先跑省一輪紅燈。
+前三者跑在 Dockerfile 的 **dev stage** 容器裡（含 pytest / ruff），與 CI 用同一份 `uv.lock`；`--build` 已內建，改了 `pyproject.toml` / `uv.lock` 也會自動生效。CI 在 PR 時會以同樣的檢查把關（ruff check + format --check + pytest），本機先跑省一輪紅燈。
+
+`make check` 是另一回事——它不碰程式碼，只把每種 `EXPOSE` × `ENV` 組合交給 compose 渲染一遍，驗兩件**錯了不會當場報錯**的事：三個 environment 的 `HTTP_PORT` 互異（撞埠要到部署當下才炸），以及沒有未解析的變數（漏設會讓 `DOMAIN` 靜默變成 `dev..localhost`，compose 只給警告）。改了 `compose*.yaml`、`deploy/`、`env/` 或 `Makefile` 之後跑一次。CI 的 `check-compose` job 呼叫同一個 target。
 
 ## Entering containers (docker exec)
 
