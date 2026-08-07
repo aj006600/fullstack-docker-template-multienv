@@ -12,5 +12,5 @@ def health_check():
 
 @app.get("/api/message")
 def message():
-    # 回傳目前環境，證明設定隨環境切換（前端會顯示）
+    # demo 用：前端顯示這個 env，證明同一顆 image 的設定隨 environment 變
     return {"message": "Hello from the backend", "env": settings.app_env}

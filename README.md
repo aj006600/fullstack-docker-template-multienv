@@ -94,7 +94,7 @@ make down   EXPOSE=<topology> ENV=<env>                  # 停止
 ├── deploy/                     # 兩種 topology（同一個 app、只差怎麼曝露）
 │   ├── compose.ports.yaml      # 綁主機埠
 │   └── compose.proxy.yaml      # 掛共用 reverse proxy
-├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT + DOMAIN
+├── env/{.env.dev,.env.qas,.env.prod}   # 各環境的非機密設定（機密走同名 .local，不進版控）
 ├── Makefile                    # init / dev / test·lint·format·check / deploy·down / ps
 ├── CONTEXT.md                  # 術語表（唯一定義處）
 ├── .github/workflows/
