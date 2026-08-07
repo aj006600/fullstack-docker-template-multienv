@@ -31,7 +31,7 @@ help:
 	@echo "Development（在你的開發機上）"
 	@echo "  make dev                          hot reload、localhost:3000 / :8000（前景執行）"
 	@echo "  make dev-down                     停止並清理 make dev 的 container 與 network"
-	@echo "  make test | lint | format         跑在 dev stage 容器裡，與 CI 同一份 uv.lock"
+	@echo "  make test | lint | format         跑在 dev stage 容器裡（CI 走 runner，共用 uv.lock）"
 	@echo "  make check                        驗證部署設定（不啟動容器，幾秒）"
 	@echo ""
 	@echo "Deployment（在目標主機上）"
@@ -79,7 +79,12 @@ dev:
 dev-down:
 	docker compose $(DEV) down
 
-# ── Tests and quality（dev stage 容器，與 CI 同一份 uv.lock）──
+# ── Tests and quality ──
+# 這裡跑在 dev stage 容器裡，CI 則在 runner 上直接用 uv（.github/workflows/ci-cd.yml）。
+# 兩邊共用的只有 uv.lock——相依版本一致，但 OS 與 Python patch 版本不同。純 Python 專案的
+# 實際差異可忽略，換到的是 CI 每次少跑約兩分鐘（private repo 的 Actions 分鐘數要計費）。
+# 代價：dev stage 從來沒有被 CI 建過，它壞掉時 CI 會全綠，要本機跑 make dev 才會發現。
+#
 # --build 必要：pyproject.toml / uv.lock 烤在 image 裡（掛載只蓋 app/ 與 tests/），
 # 不重建會用到舊設定；無變更時 layer cache 幾乎零成本。
 #

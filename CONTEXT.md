@@ -48,6 +48,12 @@ _Avoid_: mode（舊參數名 `MODE`，已改為 `EXPOSE`）、部署方式
 本 repo 用 tag 層級的 promotion：`:sha` 給 dev/qas，發版時重新標籤成 `:vX.Y.Z` 給 prod。
 _Avoid_: 重新部署、rebuild
 
+**Rollback**:
+把某個 environment 部署回**先前的 image tag**。目前是**對稱**操作——換個 `TAG` 重跑 `make deploy`
+就回去了，因為系統無狀態。一旦有了資料庫 schema，rollback 就不再對稱：程式碼回得去，
+migration 過的資料回不去（見 `docs/roadmap.md`）。
+_Avoid_: 復原、還原（那些是資料層的事；rollback 只講 image 版本）
+
 ### Images and versions
 
 **`:sha`**:

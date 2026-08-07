@@ -49,9 +49,9 @@ make format    # ruff format
 make check     # 驗證部署設定（不啟動容器）
 ```
 
-前三者跑在 Dockerfile 的 **dev stage** 容器裡（含 pytest / ruff），與 CI 用同一份 `uv.lock`；`--build` 已內建，改了 `pyproject.toml` / `uv.lock` 也會自動生效。CI 在 PR 時會以同樣的檢查把關（ruff check + format --check + pytest），本機先跑省一輪紅燈。
+前三者跑在 Dockerfile 的 **dev stage** 容器裡（含 pytest / ruff）；`--build` 已內建，改了 `pyproject.toml` / `uv.lock` 會自動生效。CI 以同樣的檢查把關，本機先跑省一輪紅燈。
 
-`make check` 是另一回事——它不碰程式碼，只把每種 `EXPOSE` × `ENV` 組合交給 compose 渲染一遍，驗兩件**錯了不會當場報錯**的事：三個 environment 的 `HTTP_PORT` 互異（撞埠要到部署當下才炸），以及沒有未解析的變數（漏設會讓 `DOMAIN` 靜默變成 `dev..localhost`，compose 只給警告）。改了 `compose*.yaml`、`deploy/`、`env/` 或 `Makefile` 之後跑一次。CI 的 `check-compose` job 呼叫同一個 target。
+`make check` 是另一回事——它不碰程式碼，只驗那些**錯了不會當場報錯**的部署設定。改了 `compose*.yaml`、`deploy/`、`env/` 或 `Makefile` 之後跑一次；驗什麼、為什麼要驗，見 Makefile 的 `check` target 註釋。
 
 ## Entering containers (docker exec)
 
@@ -104,4 +104,4 @@ docker compose ls -a     # 連停掉的 compose project 也列
 docker network ls        # 有哪些 network（proxy、各 project network）
 ```
 
-> 每個部署起來的 environment 是獨立的 compose project——`make deploy` 用 `fullstack-<env>`（`fullstack-dev` / `fullstack-qas` / `fullstack-prod`），`make down` 收得掉；`make dev` 則以資料夾名當 project 名，與它們互不干擾。用 `docker compose ls` 對照 project 名，就知道哪個 environment 正開著。
+> `docker compose ls` 列出的 project 名就是「哪個 environment 正開著」——`make deploy` 用 `fullstack-<env>`，`make dev` 用資料夾名，兩者互不干擾。
