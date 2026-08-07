@@ -8,7 +8,7 @@
 **/node_modules/
 **/dist/
 
-# 機密設定不進版控（非機密的 env/.env.* 才提交）
+# 機密走 env/.env.<env>.local，疊在進版控的 env/.env.<env> 之上（見 docs/deployment.md）
 env/*.local
 *.secret
 .DS_Store
