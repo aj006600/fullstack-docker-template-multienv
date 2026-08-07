@@ -27,16 +27,12 @@ make deploy ENV=qas IMAGE=… TAG=…
 
 只有兩個指令，各有各的地盤：
 
-| 指令 | 在哪執行 | 跑什麼 |
-|------|---------|--------|
-| `make dev` | **你的開發機** | 掛載本機 source code、hot reload、直連 `localhost` |
-| `make deploy` | **目標主機** | 拉 CI 測過的不可變映像，`--no-build` |
-
 | | `make dev` | `make deploy` |
 |---|-----------|---------------|
+| 在哪執行 | **你的開發機** | **目標主機** |
 | 目的 | 寫 code | 部署某個 environment |
 | 環境數 | 只有 **dev 一個** | dev / qas / prod（可同機並存） |
-| Image | 本機現場 build，掛載 source code | registry 的 `:sha` 或 `:vX.Y.Z` |
+| Image | 本機現場 build，掛載 source code + hot reload | registry 的 `:sha` 或 `:vX.Y.Z`，`--no-build` |
 | 執行方式 | 前景（`Ctrl+C` 停、`make dev-down` 清） | 背景 `-d`（`make down` 才會停） |
 | 怎麼連 | `localhost:3000` / `:8000` | 依 topology（`IP:port` 或 domain） |
 

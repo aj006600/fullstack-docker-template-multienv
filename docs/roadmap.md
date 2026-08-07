@@ -31,9 +31,24 @@
 - **TLS / HTTPS**：目前純 HTTP。走 `proxy` topology 的話，憑證屬於那份共用 reverse proxy 的職責
   （對外真域名可自動申請 Let's Encrypt；內網用內部 CA / mkcert），本 repo 不需要改動——
   見 [deployment.md](deployment.md) 的契約說明。`ports` topology 則需要自己在前面加一層。
-- **資料庫 / stateful 服務**：目前無狀態。加 compose 的 db 服務 + migration + 備份策略。
 - **可觀測性**：結構化 log、metrics、tracing。
 - **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
+
+## Adding a database
+
+整個 stack 目前無狀態。要加 Postgres / Redis 時這五處都得處理——前四項是新增，第五項是
+**既有保證失效**，最容易漏：
+
+1. **`compose.yaml`**：新增 db 服務與 named volume。volume 跟著 `COMPOSE_PROJECT_NAME`
+   （`<app>-<env>`）自動隔離，三個 environment 同機並存不會互相汙染資料。
+2. **`env/.env.<env>.local`**：連線字串與密碼放這裡，不進版控
+   （見 [deployment.md](deployment.md#2-configure-each-environment)）。
+3. **Migration 的執行點**：建議放進 backend container 的 entrypoint（`alembic upgrade head`
+   成功才起 uvicorn），這樣 `make deploy` 維持單一指令。拆成獨立的 compose job 會讓部署變兩步。
+4. **備份**：`make down` 不帶 `-v`，停止不會刪資料——但也沒有任何東西在備份它。
+5. **Rollback 不再對稱**（見 [CONTEXT.md](../CONTEXT.md) 的 Rollback 條目）：`TAG` 換回舊 sha 只把
+   **程式碼**帶回去，schema 還停在新版。要維持可回滾，migration 必須**向後相容**——新增欄位可為
+   NULL、不在同一版刪舊欄位、移除分兩次發版。否則 rollback 這條路等於不存在。
 
 ## Developer tooling
 

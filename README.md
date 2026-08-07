@@ -73,8 +73,7 @@ make down   EXPOSE=<topology> ENV=<env>                  # 停止
 | **`ports`** | frontend 綁到主機的 `HTTP_PORT` | 預設。不需要 domain | `http://<host>:<port>` |
 | **`proxy`** | 接上整台機器共用的 reverse proxy，依 `DOMAIN` 導流 | 要 domain、團隊存取、日後要 TLS | `http://<domain>` |
 
-「一個 environment 獨佔一台主機」不是第三種選項——那是 `ports` 把 `HTTP_PORT` 設成 80。
-詳見 [docs/deployment.md](docs/deployment.md)。
+怎麼選、怎麼連上、troubleshooting 見 [docs/deployment.md](docs/deployment.md)。
 
 ## Structure
 
