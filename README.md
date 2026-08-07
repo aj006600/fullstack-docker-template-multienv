@@ -31,6 +31,9 @@ reverse proxy 的 router 名、`DOMAIN`，以及 README 標題、頁面 title �
 
 > 需要乾淨的工作區——它會改動十幾個檔案，這樣你隨時可以 `git checkout .` 反悔。
 > 跑完 `git diff` 檢查一遍再 commit。
+
+這是**單向**的：跑完之後你的專案與這個 template 永久分岔，上游日後的修正不會流過來。
+理由與代價見 [ADR-0001](docs/adr/0001-one-way-fork-from-template.md)。
 <!-- init:end -->
 
 ## Quickstart
