@@ -45,9 +45,24 @@ GitHub 上按「Use this template」（或 clone 本 repo），改成你的 app�
 
 ### 2. Configure each environment
 
-`env/.env.dev`、`env/.env.qas`、`env/.env.prod` 各放該 environment 的**非機密**設定：`APP_ENV`、`LOG_LEVEL`、
-以及 topology 的參數——`ports` 用 `HTTP_PORT`、`proxy` 用 `DOMAIN`。
-真正的密鑰走 CI secrets 或部署時注入，別提交進 repo（見 [roadmap.md](roadmap.md)）。
+每個 environment 的設定分兩層：
+
+| 檔案 | 進版控 | 放什麼 |
+|------|-------|-------|
+| `env/.env.<env>` | 是 | **非機密**：`APP_ENV`、`LOG_LEVEL`，與 topology 的參數（`ports` 用 `HTTP_PORT`、`proxy` 用 `DOMAIN`） |
+| `env/.env.<env>.local` | **否**（`.gitignore` 擋掉） | **機密**：DB 連線字串、API key。每台主機自己建 |
+
+`.local` 疊在前者之上，**同名變數以 `.local` 為準**；沒有 `.local` 的機器照常啟動。
+
+```bash
+# 在目標主機上，例如 prod
+cat > env/.env.prod.local <<'EOF'
+DATABASE_URL=postgresql://...
+EOF
+```
+
+> `.local` 只注入 **container 內的環境變數**，不參與 compose 檔自身的插值——`HTTP_PORT` 與 `DOMAIN`
+> 走 Makefile 的 `--env-file`，寫進 `.local` 不會生效。這兩個本來也不是機密。
 
 ### 3. Push and let CI build
 

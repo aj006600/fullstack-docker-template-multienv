@@ -35,6 +35,9 @@ reverse proxy 的 router 名、`DOMAIN`，以及 README 標題、頁面 title �
 
 ## Quickstart
 
+> 需要 **Docker Compose 2.24+**（`env_file` 的 `required: false` 疊加語法，機密設定靠它）。
+> `docker compose version` 確認；太舊的話錯誤訊息是 `env_file.1 must be a string`。
+
 ```bash
 make dev       # 前後端起來，後端 hot reload（前景執行）
 # 前端 → http://localhost:3000（會顯示 backend 回傳的環境）
