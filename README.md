@@ -16,7 +16,6 @@
 | **上 production 前還要加什麼**（Secrets/TLS/DB/健康檢查…） | [docs/roadmap.md](docs/roadmap.md) |
 | **術語**（`dev` 的三個意思、`EXPOSE` 的兩個意思、up vs deploy…） | [CONTEXT.md](CONTEXT.md) |
 
-<!-- init:start -->
 ## Make it yours
 
 從這個 template 開了新 repo 之後，先跑一次：
@@ -27,14 +26,15 @@ make init APP_NAME=my-app
 
 它會把 template 的名字換成 `my-app`——container 與 network 名、本機 build 的 image 名、
 reverse proxy 的 router 名、`DOMAIN`，以及 README 標題、頁面 title 這些沒有插值能力的地方。
-同時移除 `make init` 自己與 `CLAUDE.md` / `docs/agents/`（那是蓋這個 template 時用的，不是給你的專案的）。
+同時移除 `make init` 自己，以及只服務於「蓋這個 template」的東西——`CLAUDE.md`、`docs/agents/`、
+`CONTEXT.md`、`docs/{concepts,cicd,roadmap}.md`、`docs/adr/`，並把這份 README 換成指向 `docs/` 的骨架
+（`docs/development.md` 與 `docs/deployment.md` 留著）。
 
 > 需要乾淨的工作區——它會改動十幾個檔案，這樣你隨時可以 `git checkout .` 反悔。
 > 跑完 `git diff` 檢查一遍再 commit。
 
 這是**單向**的：跑完之後你的專案與這個 template 永久分岔，上游日後的修正不會流過來。
 理由與代價見 [ADR-0001](docs/adr/0001-one-way-fork-from-template.md)。
-<!-- init:end -->
 
 ## Quickstart
 

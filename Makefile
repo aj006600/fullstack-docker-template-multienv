@@ -53,11 +53,11 @@ init:
 	@echo "$(APP_NAME)" | grep -qE '^[a-z][a-z0-9-]*$$' || { echo "APP_NAME 只能是小寫英數與連字號、開頭為字母——它會用在 image 名、compose project 名與 domain。"; exit 1; }
 	@git diff --quiet && git diff --cached --quiet || { echo "工作區有未提交的改動。請先 commit 或 stash——init 會改動多個檔案，乾淨的工作區才能用 git checkout . 還原。"; exit 1; }
 	@git ls-files -z | xargs -0 perl -pi -e 's/fullstack-docker-template-multienv/$(APP_NAME)/gi; s/fullstack/$(APP_NAME)/gi'
-	@rm -rf CLAUDE.md docs/agents
+	@rm -rf CLAUDE.md CONTEXT.md docs/agents docs/adr docs/cicd.md docs/concepts.md docs/roadmap.md
 	@perl -0777 -pi -e 's/^# >>> init.*?^# <<< init.*?\n\n//ms' Makefile
 	@perl -0777 -pi -e 's/^\t\@echo "Setup.*?\n\t\@echo ""\n//ms; s/^\.PHONY: help init /.PHONY: help /m' Makefile
-	@perl -0777 -pi -e 's/^<!-- init:start -->.*?^<!-- init:end -->\n\n//ms' README.md
-	@echo "已更名為 $(APP_NAME)，並移除 init target 與 agent 設定檔。"
+	@printf '# $(APP_NAME)\n\n- 本機開發：[docs/development.md](docs/development.md)\n- 部署：[docs/deployment.md](docs/deployment.md)\n' > README.md
+	@echo "已更名為 $(APP_NAME)，並移除 init target、agent 設定檔與 template 專用文檔。"
 	@echo "請 git diff 檢查後 commit。"
 # <<< init
 
@@ -118,7 +118,7 @@ check:
 	test $$fail -eq 0
 
 # ── Deployment ──
-# 刻意沒有「本機 build 後部署」的 target——理由見 docs/concepts.md 的 Two commands, two places。
+# 刻意沒有「本機 build 後部署」的 target：在主機上重 build 會破壞「dev 測過的就是上 prod 的那顆」。
 deploy:
 	$(guard)
 	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy EXPOSE=proxy ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }
