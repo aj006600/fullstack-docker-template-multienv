@@ -11,7 +11,7 @@
 |----------|--------|
 | **搞懂核心觀念**（一顆 image 多環境、build vs registry、本機 vs CI/CD） | [docs/concepts.md](docs/concepts.md) |
 | **本機開發**（quickstart、hot reload、docker exec、查看跑了什麼） | [docs/development.md](docs/development.md) |
-| **部署**（三種 topology、怎麼連上、troubleshooting） | [docs/deployment.md](docs/deployment.md) |
+| **部署**（兩種 topology、怎麼連上、troubleshooting） | [docs/deployment.md](docs/deployment.md) |
 | **CI/CD 與發版**（promotion、rollback、GitHub 設定、image 清理） | [docs/cicd.md](docs/cicd.md) |
 | **上 production 前還要加什麼**（Secrets/TLS/DB/健康檢查…） | [docs/roadmap.md](docs/roadmap.md) |
 | **術語**（`dev` 的三個意思、up vs deploy、topology…） | [CONTEXT.md](CONTEXT.md) |

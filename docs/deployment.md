@@ -116,10 +116,12 @@ make ps              # 看狀態
 不綁主機埠，接上整台機器共用的 reverse proxy，由它依 `DOMAIN` 把請求導到對應的 environment。
 
 ```
-                        ┌─ dev.app.localhost  → dev  這組 container
-瀏覽器 → proxy(:80) ─────┼─ qas.app.localhost  → qas  這組 container
-                        └─ app.localhost      → prod 這組 container
+                        ┌─ dev.fullstack.localhost  → dev  這組 container
+瀏覽器 → proxy(:80) ─────┼─ qas.fullstack.localhost  → qas  這組 container
+                        └─ fullstack.localhost      → prod 這組 container
 ```
+
+（`fullstack` 是專案名，來自 Makefile 的 `APP_NAME`——`make init` 之後會是你的名字。）
 
 ### Prerequisite: 一份整台機器共用的 reverse proxy
 
