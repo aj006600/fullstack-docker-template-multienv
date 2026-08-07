@@ -48,9 +48,8 @@ make deploy ENV=qas IMAGE=… TAG=…
 > 決定（merge → 該 commit 的 `:sha` 部署 dev+qas；打 `v*` tag → prod），人工部署與 rollback 就自己指定。
 > 見 [cicd.md](cicd.md)。
 
-> **「哪個環境跑哪顆」目前只能靠 `docker ps` 的 image tag。** GitHub Environments 上雖然有部署歷史，
-> 但 deploy job 現在只印出指令、不連線主機（見 [cicd.md](cicd.md) 與 [roadmap.md](roadmap.md)），
-> 那些紀錄**不代表實際部署發生過**。接上 SSH / docker context 之後，部署歷史才會成為可信的紀錄。
+> **「哪個環境跑哪顆」只能靠主機上 `docker ps` 的 image tag。** pipeline 不部署，所以 GitHub
+> 那邊沒有部署紀錄可查（見 [cicd.md](cicd.md)）。
 
 ## Local vs CI/CD: two separate worlds
 
@@ -59,18 +58,19 @@ make deploy ENV=qas IMAGE=… TAG=…
 **本機**：`make dev` 跑的永遠是你**當下的工作區**，連未 commit 的改動都算，而且只有 dev 一個環境。
 它跟 GitHub 無關，不會因為誰 merge 了什麼而改變。
 
-**遠端**：推到 GitHub 後由 pipeline build（CI）並部署（CD）：
+**遠端**：推到 GitHub 後由 pipeline 建置並標籤（CI）。部署是另一件事，由人執行：
 
 ```bash
-gh pr merge --squash                        # 部署 dev + qas（merge 到 main 自動觸發，不含 prod）
-git tag v1.2.0 && git push origin v1.2.0    # 部署 prod（只有打 v* tag 才觸發，需人工核准）
+gh pr merge --squash                        # build 出該 commit 的 :sha
+git tag v1.2.0 && git push origin v1.2.0    # 把該 :sha 加標成 :v1.2.0
 ```
 
-| 指令 | 更新哪裡 | 更新哪個 environment |
-|------|---------|-------------|
-| `make dev`（重跑） | 你**本機** | 只有 dev |
-| `gh pr merge`（merge main） | **遠端 CD 部署** | **dev + qas**（不含 prod） |
-| `git tag v* && git push` | **遠端 CD 部署** | **prod**（需核准） |
+| 指令 | 動到哪裡 | 效果 |
+|------|---------|------|
+| `make dev`（重跑） | 你**本機** | 只有 dev，立即生效 |
+| `gh pr merge`（merge main） | **registry** | 產出 `:sha`，沒有任何環境變動 |
+| `git tag v* && git push` | **registry** | 產出 `:vX.Y.Z`，沒有任何環境變動 |
+| `make deploy`（在主機上） | **那台主機** | 唯一會改變執行中環境的動作 |
 
-> 目前 pipeline 的 deploy job（CD）只會**印出**「該在主機上執行的 `make deploy` 指令」，尚未真的連線主機——
-> 接上 SSH / docker context 後（見 [roadmap.md](roadmap.md)），上表「遠端」那兩列才會真的部署到伺服器。
+> 推到 GitHub 不會改變任何正在跑的環境——pipeline 的職責到「建置與標籤」為止。要讓某個
+> environment 換版，一定要有人在該主機上跑 `make deploy`（見 [cicd.md](cicd.md)）。

@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: make check
 
-  # ========== merge 到 main：build 兩個映像 + 自動部署 dev → qas（不含 prod）==========
+  # ========== merge 到 main：build 兩個映像（部署由人在主機上執行，見 docs/cicd.md）==========
   build:
     needs: [test-backend, build-frontend, check-compose]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -89,44 +89,20 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
-  # 以下三個 deploy job 目前「只印指令」，不連線任何主機。它們保留著是因為結構本身有價值：
-  # job 圖形顯示 promotion 順序、environment 是日後掛各環境 SSH secrets 的作用域、
-  # production 的 required reviewers 是真實生效的核准閘門。接上主機時是填空，不是重新設計。
-  # 代價：Environments 會留下不代表實際部署的紀錄——所以 job 名稱直說，文件也如實描述。
-  # 注意這些都依賴 Environments 可用：免費方案的 private repo 不支援（見 docs/cicd.md）。
-  deploy-dev:
-    name: deploy-dev (prints command only)
-    needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: dev
-    steps:
-      # TODO：接上 SSH / docker context 後，改為真的連上 dev 主機執行下列指令
-      - run: |
+      # 部署指令印在 run summary，把 sha 直接填好省得回頭查。CD 不連線主機——部署是人在
+      # 目標主機上跑的，理由見 docs/cicd.md。
+      # 限定單一 matrix leg：不加這個條件，backend 與 frontend 會各印一份一模一樣的區塊。
+      - if: matrix.service == 'backend'
+        run: |
           {
-            echo "### dev：尚未接上主機，請自行在 dev 主機上執行"
+            echo "### 部署這個 commit"
+            echo "在目標主機上執行（\`EXPOSE\` 依該主機的 topology 擇一）："
             echo '```bash'
-            echo "make deploy EXPOSE=<ports|proxy> ENV=dev IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+            echo "make deploy EXPOSE=<ports|proxy> ENV=<dev|qas> IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
-  deploy-qas:
-    name: deploy-qas (prints command only)
-    needs: deploy-dev
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    environment: qas
-    steps:
-      # TODO：接上 SSH / docker context 後，改為真的連上 qas 主機執行下列指令
-      - run: |
-          {
-            echo "### qas：尚未接上主機，請自行在 qas 主機上執行"
-            echo '```bash'
-            echo "make deploy EXPOSE=<ports|proxy> ENV=qas IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  # ========== 打 v* tag：發版到 prod（兩個映像加版本標籤，不重 build）==========
+  # ========== 打 v* tag：把測過的 :sha 加上版本標籤（不重 build）==========
   release:
     needs: [test-backend, build-frontend, check-compose]
     if: startsWith(github.ref, 'refs/tags/v')
@@ -149,17 +125,12 @@ jobs:
             --tag ${{ env.IMAGE }}-${{ matrix.service }}:${{ github.ref_name }} \
             ${{ env.IMAGE }}-${{ matrix.service }}:${{ github.sha }}
 
-  deploy-prod:
-    name: deploy-prod (prints command only)
-    needs: release
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    environment: production   # 在 GitHub 設 required reviewers → 上 prod 需人工核准
-    steps:
-      # TODO：接上 SSH / docker context 後，改為真的連上 prod 主機執行下列指令
-      - run: |
+      # 同 build job：限定單一 matrix leg，否則兩份一模一樣的區塊
+      - if: matrix.service == 'backend'
+        run: |
           {
-            echo "### prod：尚未接上主機，請自行在 prod 主機上執行"
+            echo "### 發版到 prod"
+            echo "在 prod 主機上執行："
             echo '```bash'
             echo "make deploy EXPOSE=<ports|proxy> ENV=prod IMAGE=${{ env.IMAGE }} TAG=${{ github.ref_name }}"
             echo '```'

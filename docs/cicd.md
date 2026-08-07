@@ -13,19 +13,22 @@ gh pr create --fill
 gh pr merge --squash    # CI 綠燈後自己就能 merge（approvals = 0）
 ```
 
-- PR 觸發測試；merge 到 main 才 build + 部署 **dev/qas**；打 `v*` tag 才上 **prod**
+- PR 觸發測試；merge 到 main 才 build 出 `:sha`；打 `v*` tag 才把 `:sha` 加上版本標籤
+- **部署由人在目標主機上執行**，pipeline 不連線任何主機（理由見 [One-time GitHub setup](#one-time-github-setup)）
 - main 上**每個** commit 都會 build 出 `:sha`（含純文件 commit）——promote、rollback、`git bisect` 都依賴這個不變量。重複建置的成本由 build cache 吸收
 
 ## Build-once promotion
 
-**Build 一次 → 兩個 service 各打不可變的 git SHA tag → 同一組 image promote。** dev/qas 靠 merge 自動、prod 靠打 tag——各環境跑的都是**同一組 image**（用 SHA 指定），不重 build、不靠 `latest`。
+**Build 一次 → 兩個 service 各打不可變的 git SHA tag → 同一組 image promote。** 各環境跑的都是**同一組 image**（用 SHA 指定），不重 build、不靠 `latest`。
 
 ```
-merge main ─▶ test ─▶ build(backend+frontend :sha) ─▶ deploy-dev ─▶ deploy-qas     （自動）
-git tag v* ─▶ test ─▶ release(:sha→:v*) ─▶ deploy-prod                             （發版才觸發）
-                                              ▲
-                    GitHub Environment「production」設 required reviewers → 上 prod 需人工核准
+merge main ─▶ test ─▶ build(backend+frontend :sha) ─┐
+                                                    ├─▶ 人在目標主機上 make deploy
+git tag v* ─▶ test ─▶ release(:sha → :vX.Y.Z)      ─┘
 ```
+
+pipeline 的職責到「建置與標籤」為止。兩個 job 的 run summary 都會把該執行的 `make deploy` 指令
+連同 tag 一起印出來，直接複製到主機上跑。
 
 Image 位置（兩個）：
 
@@ -34,11 +37,9 @@ ghcr.io/<your-account>/<your-repo>-backend:<git-sha>
 ghcr.io/<your-account>/<your-repo>-frontend:<git-sha>
 ```
 
-> deploy-dev/qas/prod job 目前只**印出**「該在主機上執行的 `make deploy` 指令」，尚未連線主機。promotion 結構與審核閘門已就緒，接上 SSH / docker context 讓 CD（deploy job）真的在主機執行該指令即可（見 [roadmap.md](roadmap.md)）。
-
 ## Deploy execution: make deploy
 
-Deployment = 在**目標主機**上「拉 CI 測過的不可變 image + `up -d`」，**不在主機重 build**（在主機重 build 會破壞 build-once 的保證）。pipeline 與人工走**同一條指令**，不會漂移：
+Deployment = 在**目標主機**上「拉 CI 測過的不可變 image + `up -d`」，**不在主機重 build**（在主機重 build 會破壞 build-once 的保證）：
 
 ```bash
 make deploy EXPOSE=<ports|proxy> ENV=<dev|qas|prod> \
@@ -48,9 +49,9 @@ make deploy EXPOSE=<ports|proxy> ENV=<dev|qas|prod> \
 職責分工：
 
 ```
-CI/CD（自動）    ＝ 決策 + 閘門 + 紀錄：何時部署（merge / tag）、部署哪顆（sha）、
-                   測試綠燈、prod 人工核准、Environments 部署歷史
-make deploy      ＝ 執行原語：拉指定 TAG + up。CD（deploy job）呼叫它；人工只在 bootstrap／緊急／rollback 時用
+CI（自動）       ＝ 建置與標籤：測試綠燈才 build、main 每個 commit 一顆 :sha、
+                   打 v* tag 才把該 :sha 標成 :vX.Y.Z
+make deploy      ＝ 執行原語：在目標主機上拉指定 TAG + up。由人執行，pipeline 只印指令
 ```
 
 ## Release to prod (git tag)
@@ -61,9 +62,12 @@ git tag v1.2.0                         # 2. 打版本 tag
 git push origin v1.2.0                 # 3. 推 tag → 觸發 prod 發版
 ```
 
-會把測試過的 `:sha` **加上版本 tag `:v1.2.0`（不重 build）**，再部署 prod。
+會把測試過的 `:sha` **加上版本 tag `:v1.2.0`（不重 build）**。接著在 prod 主機上部署那個 tag
+（`release` job 的 run summary 會把這行填好印出來）：
 
-> `production` environment 若設了 required reviewers，發版會**停下等人核准**。
+```bash
+make deploy EXPOSE=<ports|proxy> ENV=prod IMAGE=ghcr.io/<your-account>/<your-repo> TAG=v1.2.0
+```
 
 **tag 必須指向已經 build 完成的 commit。** `release` job 是把既有的 `:sha` 重新貼標籤，所以那顆映像要先存在。
 merge 之後**立刻**打 tag 有可能搶在 main 的 build 完成之前（tag 與 main 是不同的 ref，concurrency 不會讓它們排隊），
@@ -87,9 +91,8 @@ git checkout v1.0.0                   # 或用版本 tag 切到某次發版的 c
 docker ps --format '{{.Image}}'       # 看正在跑的 container 用哪顆 image
 ```
 
-> GitHub 網頁 → repo → **Environments** 會列出部署歷史，但 deploy job 目前只印指令、不連線主機，
-> 所以那些紀錄**不代表實際部署發生過**。現階段請以主機上的 `docker ps` 為準；接上 SSH / docker context
-> 之後（見 [roadmap.md](roadmap.md)），Environments 才會成為可信的紀錄。
+> 「哪個環境跑哪一版」的唯一真相是主機上的 `docker ps`。pipeline 不部署，所以 GitHub 那邊沒有
+> 任何部署紀錄可查——要有可信的部署歷史，得先讓 CD 真的連上主機（見 [roadmap.md](roadmap.md)）。
 
 ## Rollback
 
@@ -105,43 +108,57 @@ make deploy EXPOSE=<ports|proxy> ENV=prod \
 
 ## Image cleanup
 
-`.github/workflows/cleanup.yml` 每週跑一次——兩個 service 的 `:sha` 建置各**只留最近 50 個**、**保護 `v*` 正式版**（永不刪除，rollback 才有得回）、刪 untagged。避免 image 無限累積。
+`.github/workflows/cleanup.yml` 每週跑一次——兩個 service 的 `:sha` 建置各**只留最近 20 個**、**保護 `v*` 正式版**（永不刪除，rollback 才有得回）、刪 untagged。避免 image 無限累積。
 
-> 這個數字就是 dev/qas 的 rollback 視窗有多深（main 每個 commit 建一顆）。package 名由
-> `GITHUB_REPOSITORY` 推導，fork 或改名都不必改那個檔案。
+> 這個數字就是 dev/qas 的 rollback 視窗有多深（main 每個 commit 建一顆），也是 Packages 儲存
+> 額度的主要旋鈕（見下方 [Billing](#billing)）。package 名由 `GITHUB_REPOSITORY` 推導，
+> fork 或改名都不必改那個檔案。
 
 ## One-time GitHub setup
 
-以下設定存在 GitHub、不在程式碼裡，各做一次即可。
+這個 template 假設 repo 是 **private**、方案是 **GitHub Free**。這個組合決定了哪些機制根本不存在，
+先讀完再去設定，免得對著設不起來的畫面找原因。
 
-### 1. Prod approval (Environments)
+### 為什麼沒有 deploy job
 
-> **注意：prod 只在打 `v*` tag 時才部署（merge 不會碰 prod）。但即使打了 tag，若沒設 required reviewers，`production` 也不會擋——會直接上。**
+Free 方案的私有 repo **不支援 Environments**（[官方文件](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)：
+私有 repo 要 GitHub Pro 或 Team 以上），連帶沒有 environment secrets，也沒有 prod 的 required reviewers。
 
-到 **Settings → Environments** 建立 `dev`、`qas`、`production`，並在 `production` 加 **Required reviewers**（發版才會停下等人核准）。
+一個既連不上主機、又拿不到核准閘門的 deploy job，留著只是每次 merge 白付一分鐘
+（Actions 以 **job** 為單位無條件進位計費），所以這個 pipeline 直接沒有 deploy job——
+部署指令由 `build` / `release` 的 run summary 提供，人複製到主機上跑。
 
-### 2. Branch protection (require PR + green CI)
+閘門其實還在，只是不在 GitHub 上：打 `v*` tag 是人主動做的，`make deploy` 也是人在主機上跑的。
+上 prod 本來就要經過兩個獨立的人為動作。
 
-到 **Settings → Branches** 對 `main` 加規則：
+### Billing
 
-- **Require a pull request before merging**（禁止直接 push；單人可把 required approvals 設 0）
+| 資源 | Free 額度 | 這個 repo 的用量 |
+|------|----------|----------------|
+| Actions 分鐘數 | 2,000 分/月，**帳號共用**（非每 repo） | merge 到 main 約 8 分鐘（5 個 job）；每個 PR run 約 3 分鐘 |
+| Packages 儲存 | 500MB | 由 `cleanup.yml` 的 `keep-n-tagged` 控制 |
+
+分鐘數是帳號層級共用的，所以這個 template 開到第四、五個專案時就會逼近額度——「template 的成本
+要乘上專案數」在這裡有了具體形態。真的撞到時最省的一刀是調低 `keep-n-tagged` 與清理頻率，
+**不是**加 `paths-ignore`：那會破壞「main 每個 commit 都有 `:sha`」這個 promote / rollback / bisect
+全都依賴的不變量。
+
+> 專案若不需要保密，轉 public 是最便宜的解——兩項計費歸零，並一併拿回 Environments 與
+> branch protection。
+
+### Branch protection
+
+Free + private 同樣拿不到 branch protection：`main` 可以被直接 push、紅燈也擋不住 merge。
+單人 repo 的實務影響有限（這些機制主要是擋別人），但要靠自律——**PR 綠燈才 merge**。
+
+升級到 Pro 之後，到 **Settings → Branches** 對 `main` 加規則：
+
+- **Require a pull request before merging**（單人可把 required approvals 設 0）
 - **Require status checks to pass** → 勾 `test-backend`、`build-frontend`、`check-compose`
 - **Do not allow bypassing the above settings**（連 owner 也受限）
 
-### 3. 若要把 repo 轉為 private：先升級方案，再轉
-
-順序反了會掉設定。GitHub **Free 方案的私有 repo** 不支援 branch protection 與 rulesets，也**不能設定
-Environments**——連帶失去 environment secrets 與 prod 的 required reviewers，上面兩節就全部做不了。
-而且 public repo 轉 private 時，**既有的 protection rules 與 environment secrets 會直接失效**，
-不是保留但停用；等升級後還得重設一次。
-
-所以要轉私有：**先升到 GitHub Pro 以上**（私有 repo 才能用 Environments），再轉。
-
-若堅持留在免費方案並轉私有，剩下的只有可見性——PR 仍會觸發 `test-backend`、`build-frontend`
-與 `check-compose`，紅燈仍看得見，但 `main` 可被直接 push、紅燈擋不住 merge、上 prod 也不會停下等核准。
-單人 repo 的實務影響有限（這些機制主要是擋別人）。
-
-> 順帶一提，維持 public 的話 Actions 分鐘數與 Packages 儲存都不計費；轉私有後兩者都開始計入方案額度。
+> 注意順序：public 轉 private 時，**既有的 protection rules 與 environment secrets 會直接失效**，
+> 不是保留但停用。要用這些功能就先升級方案，再轉。
 
 ## Side note: dual hosting on GitLab + GitHub (deferred)
 

@@ -16,9 +16,10 @@
 
 ## Deployment
 
-- **讓 CD（deploy job）連上目標主機**：拉取式部署指令 `make deploy`（pull tested `:sha` + `up -d`，見 [cicd.md](cicd.md)）已就緒，
-  `deploy-dev/qas/prod` job 目前只**印出**該指令、尚未連線主機。補上連線方式（SSH + secrets、docker context、
-  或 self-hosted runner）讓 CD 真的在主機執行它。**CD 結構、prod 核准閘門、部署指令都已就緒，只差這一步。**
+- **讓 CD 連上目標主機**：部署指令 `make deploy`（pull tested `:sha` + `up -d`）已就緒，但 pipeline
+  **沒有** deploy job——Free 方案的私有 repo 拿不到 Environments，一個既不連線主機、又拿不到核准閘門的
+  job 只是每次 merge 白付分鐘數（理由見 [cicd.md](cicd.md#為什麼沒有-deploy-job)）。要自動化得同時補兩件事：
+  連線方式（SSH + secrets、docker context 或 self-hosted runner），以及 prod 的核准閘門——後者要先升級到 GitHub Pro。
 - **改用 digest 部署**：目前用 `:sha` tag 指定版本。tag 理論上可被覆寫，digest（`@sha256:…`）不行——
   供應鏈保證要求最嚴時，部署與稽核都應記錄 digest 而非 tag。
 
