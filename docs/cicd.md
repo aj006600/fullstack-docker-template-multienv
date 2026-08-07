@@ -30,8 +30,8 @@ git tag v* ─▶ test ─▶ release(:sha→:v*) ─▶ deploy-prod            
 Image 位置（兩個）：
 
 ```
-ghcr.io/<your-account>/fullstack-docker-template-multienv-backend:<git-sha>
-ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
+ghcr.io/<your-account>/<your-repo>-backend:<git-sha>
+ghcr.io/<your-account>/<your-repo>-frontend:<git-sha>
 ```
 
 > deploy-dev/qas/prod job 目前只**印出**「該在主機上執行的 `make deploy` 指令」，尚未連線主機。promotion 結構與審核閘門已就緒，接上 SSH / docker context 讓 CD（deploy job）真的在主機執行該指令即可（見 [roadmap.md](roadmap.md)）。
@@ -42,7 +42,7 @@ Deployment = 在**目標主機**上「拉 CI 測過的不可變 image + `up -d`�
 
 ```bash
 make deploy EXPOSE=<ports|proxy> ENV=<dev|qas|prod> \
-    IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<git-sha 或 vX.Y.Z>
+    IMAGE=ghcr.io/<your-account>/<your-repo> TAG=<git-sha 或 vX.Y.Z>
 ```
 
 職責分工：
@@ -100,12 +100,15 @@ git log --oneline                     # 1. 找出要回到的舊 SHA
 
 # 2. 在目標主機上把該環境部署回舊 SHA（一行）
 make deploy EXPOSE=<ports|proxy> ENV=prod \
-    IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<old-sha>
+    IMAGE=ghcr.io/<your-account>/<your-repo> TAG=<old-sha>
 ```
 
 ## Image cleanup
 
-`.github/workflows/cleanup.yml` 每週跑一次——兩個 service 的 `:sha` 建置各**只留最近 10 個**、**保護 `v*` 正式版**（永不刪除，rollback 才有得回）、刪 untagged。避免 image 無限累積。
+`.github/workflows/cleanup.yml` 每週跑一次——兩個 service 的 `:sha` 建置各**只留最近 50 個**、**保護 `v*` 正式版**（永不刪除，rollback 才有得回）、刪 untagged。避免 image 無限累積。
+
+> 這個數字就是 dev/qas 的 rollback 視窗有多深（main 每個 commit 建一顆）。package 名由
+> `GITHUB_REPOSITORY` 推導，fork 或改名都不必改那個檔案。
 
 ## One-time GitHub setup
 

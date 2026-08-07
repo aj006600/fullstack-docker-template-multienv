@@ -2,8 +2,9 @@
 services:
   backend:
     build: ./backend
-    # 本機 build 預設 fullstack-backend:latest；make deploy 傳入 IMAGE/TAG 改拉 CI 建好的映像
-    image: ${IMAGE:-fullstack}-backend:${TAG:-latest}
+    # 本機 build 預設 <APP_NAME>-backend:latest（APP_NAME 由 Makefile 帶入）；
+    # make deploy 傳入 IMAGE/TAG 改拉 CI 建好的映像
+    image: ${IMAGE:-${APP_NAME:-fullstack}}-backend:${TAG:-latest}
     restart: unless-stopped
     env_file:
       - env/.env.${APP_ENV:-dev}
@@ -18,7 +19,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: ${IMAGE:-fullstack}-frontend:${TAG:-latest}
+    image: ${IMAGE:-${APP_NAME:-fullstack}}-frontend:${TAG:-latest}
     restart: unless-stopped
     # 等 backend 真的能服務再起 nginx；只等「container 啟動」的話，
     # uvicorn 尚未 listen 的那段時間 /api 會回 502

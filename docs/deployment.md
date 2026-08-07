@@ -116,10 +116,12 @@ make ps              # 看狀態
 不綁主機埠，接上整台機器共用的 reverse proxy，由它依 `DOMAIN` 把請求導到對應的 environment。
 
 ```
-                        ┌─ dev.app.localhost  → dev  這組 container
-瀏覽器 → proxy(:80) ─────┼─ qas.app.localhost  → qas  這組 container
-                        └─ app.localhost      → prod 這組 container
+                        ┌─ dev.fullstack.localhost  → dev  這組 container
+瀏覽器 → proxy(:80) ─────┼─ qas.fullstack.localhost  → qas  這組 container
+                        └─ fullstack.localhost      → prod 這組 container
 ```
+
+（`fullstack` 是專案名，來自 Makefile 的 `APP_NAME`——`make init` 之後會是你的名字。）
 
 ### Prerequisite: 一份整台機器共用的 reverse proxy
 
@@ -200,14 +202,16 @@ docker ps --filter publish=<port>        # 或看是哪個 container
 真的需要時手動執行：
 
 ```bash
-COMPOSE_PROJECT_NAME=fullstack-qas docker compose \
+COMPOSE_PROJECT_NAME=fullstack-qas APP_NAME=fullstack docker compose \
   -f compose.yaml -f deploy/compose.ports.yaml \
   --env-file env/.env.qas up -d --build
 
 make down EXPOSE=ports ENV=qas      # 停止
 ```
 
-`COMPOSE_PROJECT_NAME` 不能省——省了會用資料夾名當 project 名，跟 `make dev` 的 container 互相覆蓋。
+兩個變數都不能省：`COMPOSE_PROJECT_NAME` 省了會用資料夾名當 project 名，跟 `make dev` 的 container
+互相覆蓋；`APP_NAME` 省了 `env/.env.*` 的 `DOMAIN` 會插值成畸形的 `qas..localhost`——而且只是**警告**，
+不會失敗。平常走 `make` 時這兩個都由 Makefile 帶入。
 
 注意這樣跑起來的東西：**沒有經過 CI 把關，image 名是 `fullstack-backend:latest`、追不到版本**。
 它是臨時檢查手段，不是部署方式——不要讓別人長期連它。
