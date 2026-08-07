@@ -16,8 +16,8 @@ make deploy EXPOSE=<topology> ENV=<env> IMAGE=… TAG=…    # 拉指定版本�
 make down   EXPOSE=<topology> ENV=<env>                  # 停止
 ```
 
-`TAG` 是 `:sha`（dev/qas）或 `vX.Y.Z`（prod），由 promotion 流程決定；rollback 就換回舊的 sha。
-見 [cicd.md](cicd.md)。
+`TAG` 是 `:sha`（dev/qas）或 `vX.Y.Z`（prod）；rollback 就換回舊的 sha——無狀態時才這麼單純，
+見 [CONTEXT.md](../CONTEXT.md) 的 Rollback 條目與 [cicd.md](cicd.md)。
 
 > **主機必須是 amd64 Linux。** CI 只建 amd64——在 Apple Silicon 的開發機上 `make deploy` 會失敗
 > （`no matching manifest for linux/arm64`）。開發機請用 `make dev`；理由與例外見 [roadmap.md](roadmap.md)
@@ -82,7 +82,7 @@ echo <PAT> | docker login ghcr.io -u <你的帳號> --password-stdin
 PAT 需要 `read:packages` 權限。沒登入的話 `make deploy` 會停在 `pull` 這步，錯誤訊息是
 `denied` 或 `unauthorized`。
 
-> CD（deploy job）之後真的連上主機時同樣要處理這件事，見 [roadmap.md](roadmap.md)。
+> 之後 CD 真的連上主機時同樣要處理這件事，見 [roadmap.md](roadmap.md)。
 
 ---
 
@@ -137,7 +137,7 @@ make ps              # 看狀態
 
 （`fullstack` 是專案名，來自 Makefile 的 `APP_NAME`——`make init` 之後會是你的名字。）
 
-### Prerequisite: 一份整台機器共用的 reverse proxy
+### Prerequisite: a machine-wide reverse proxy
 
 **這份 proxy 不在本 repo**，因為它是「一台機器一份」，而 app 是「一台機器多個」——每個 app repo
 各帶一份，只會互相搶 80 埠。
@@ -176,7 +176,7 @@ make ps
 DOMAIN=dev.app.example.com make deploy EXPOSE=proxy ENV=dev IMAGE=… TAG=…
 ```
 
-### 回 404
+### Getting a 404
 
 代表網址**有解析成功**（請求到了 proxy），只是 proxy 沒有對應的路由：
 

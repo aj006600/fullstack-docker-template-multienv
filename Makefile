@@ -1,21 +1,16 @@
-# 這個專案的名字。所有「執行期」名稱都從這一行流出去：compose project 名（＝container 與
-# network 名）、本機 build 的 image 名、reverse proxy 的 router 名、env 檔的 DOMAIN。
-# 注意 README 標題、頁面 title、pyproject description 這些沒有插值能力的地方是寫死的——
-# 只改這一行不會動到它們。
+# 執行期的名字都從這行流出去：compose project 名、本機 image 名、proxy router 名、DOMAIN。
+# 但 README 標題、頁面 title、pyproject description 沒有插值能力，是寫死的——改這行動不到，
+# 要 make init 才會一起換。
 APP_NAME := fullstack
 
 DEV := -f compose.yaml -f compose.dev.yaml
 
-# EXPOSE = ports | proxy
-# ENV    = dev | qas | prod
 # 註解不可寫在同一行：Make 會把 # 之前的空白一起吃進變數值
 EXPOSE ?= ports
 ENV    ?= dev
 
 STACK   := -f compose.yaml -f deploy/compose.$(EXPOSE).yaml --env-file env/.env.$(ENV)
-# APP_NAME 必須進到 compose 的插值環境：compose.yaml 的 image 預設名與 env 檔的
-# DOMAIN=<env>.$${APP_NAME}.localhost 都用到它。沒帶進去只會是警告不是錯誤，
-# DOMAIN 會靜默變成 "dev..localhost"。
+# APP_NAME 必須進到 compose 的插值環境：漏了只是 warning、退出碼 0，DOMAIN 會靜默變成 "dev..localhost"
 PROJECT := COMPOSE_PROJECT_NAME=$(APP_NAME)-$(ENV) APP_NAME=$(APP_NAME)
 
 # 打錯 EXPOSE/ENV 時給明確訊息，而不是 compose 的 "no such file" 或靜靜載入到別的環境
@@ -46,19 +41,13 @@ help:
 
 # >>> init（make init 會刪掉這整段，不要移除這兩行標記）
 # ── Project init（一次性）──
-# 把 template 的名字換成你的專案名。對 git 追蹤的檔案全跑，不維護檔案清單——
-# 之後新增的檔案自動涵蓋，不會靜默漏改。
-#
-# 兩條規則的順序不能反：先換長的（repo 名），否則 "fullstack-docker-template-multienv"
-# 會先被短規則切成 "my-app-docker-template-multienv"。
-#
-# 不分大小寫（/i）：展示用的標題寫成 "Fullstack Multi-env"（頁面 title、<h1>、
-# pyproject description），只比對小寫會漏掉它們。
-#
-# 用 perl 而非 sed：BSD（macOS）要寫 -i ''、GNU（Linux）要寫 -i，語法不相容；
-# perl -pi 兩邊一致，而且兩個平台都內建。
-#
-# 要求工作區乾淨：這會改動十幾個檔案，保持「反悔就 git checkout .」這條退路。
+# 對 git 追蹤的檔案全跑，不維護檔案清單——之後新增的檔案自動涵蓋，不會靜默漏改。
+# 兩條規則的順序不能反：先換長的，否則 "fullstack-docker-template-multienv" 會先被短規則
+# 切成 "my-app-docker-template-multienv"。
+# /i 不分大小寫：展示用的 "Fullstack Multi-env"（頁面 title、<h1>、pyproject description）
+# 只比對小寫會漏掉。
+# perl 而非 sed：BSD 要 -i ''、GNU 要 -i，語法不相容；perl -pi 兩邊一致且都內建。
+# 要求工作區乾淨：這會改十幾個檔案，保住「反悔就 git checkout .」這條退路。
 init:
 	@test "$(APP_NAME)" != "fullstack" || { echo "用法：make init APP_NAME=my-app"; exit 1; }
 	@echo "$(APP_NAME)" | grep -qE '^[a-z][a-z0-9-]*$$' || { echo "APP_NAME 只能是小寫英數與連字號、開頭為字母——它會用在 image 名、compose project 名與 domain。"; exit 1; }
@@ -80,17 +69,13 @@ dev-down:
 	docker compose $(DEV) down
 
 # ── Tests and quality ──
-# 這裡跑在 dev stage 容器裡，CI 則在 runner 上直接用 uv（.github/workflows/ci-cd.yml）。
-# 兩邊共用的只有 uv.lock——相依版本一致，但 OS 與 Python patch 版本不同。純 Python 專案的
-# 實際差異可忽略，換到的是 CI 每次少跑約兩分鐘（private repo 的 Actions 分鐘數要計費）。
-# 代價：dev stage 從來沒有被 CI 建過，它壞掉時 CI 會全綠，要本機跑 make dev 才會發現。
+# 跑在 dev stage 容器裡；CI 直接在 runner 上用 uv，兩邊只共用 uv.lock（省 CI 分鐘數）。
+# 代價：dev stage 從沒被 CI 建過，它壞掉時 CI 全綠，要本機 make dev 才會發現。
 #
-# --build 必要：pyproject.toml / uv.lock 烤在 image 裡（掛載只蓋 app/ 與 tests/），
-# 不重建會用到舊設定；無變更時 layer cache 幾乎零成本。
-#
-# --user：dev stage 以 root 執行，而 ruff format 會寫回掛載的 app/ 與 tests/。
-# 在 Linux 上那些檔案會變成 root 所有，之後編輯不了（macOS 的 Docker Desktop 會轉譯所有權，看不出問題）。
-# 快取改寫到 /tmp：映像裡的 /app 由 root 擁有，換成你的 uid 之後寫不進 .ruff_cache / .pytest_cache。
+# --build：pyproject / uv.lock 烤在 image 裡（掛載只蓋 app/ 與 tests/），不重建會用到舊設定。
+# --user：dev stage 以 root 跑，ruff format 會把掛載的檔案寫成 root 所有，Linux 上之後編輯不了
+#         （macOS 的 Docker Desktop 會轉譯所有權，看不出問題）。
+# 快取改到 /tmp：換成你的 uid 後，寫不進映像裡 root 擁有的 /app。
 RUNDEV = docker compose $(DEV) run --build --rm \
 	--user $(shell id -u):$(shell id -g) \
 	-e RUFF_CACHE_DIR=/tmp/.ruff_cache \
@@ -107,13 +92,11 @@ format:
 	$(RUNDEV) ruff format .
 
 # ── Config check ──
-# 把每種 EXPOSE × ENV 組合渲染一遍（不啟動容器），只驗兩件事——都是「人手動編輯、
-# 而且錯了不會當場報錯」的：
-#   1. 三個 environment 的 HTTP_PORT 互異。撞埠要到部署當下才炸 port is already allocated。
-#   2. 渲染時沒有未解析的變數。漏傳 APP_NAME 會讓 DOMAIN 變成 "dev..localhost"，
-#      而 compose 只給 warning、退出碼 0——不主動檢查就不會發現。
-# 刻意不斷言 project 名或 router 名：它們由 $(APP_NAME)-$(ENV) 拼出來，測了等於測字串串接。
-# CI 呼叫同一個 target，本機與 CI 不會漂移。
+# 渲染每種 EXPOSE × ENV（不啟動容器），只驗兩件「錯了不會當場報錯」的事：
+#   1. 三個 environment 的 HTTP_PORT 互異——撞埠要到部署當下才炸。
+#   2. 沒有未解析的變數——漏傳 APP_NAME 會讓 DOMAIN 變成 "dev..localhost"，而 compose
+#      只給 warning、退出碼 0。
+# 刻意不斷言 project 名與 router 名：它們是 $(APP_NAME)-$(ENV) 串接出來的，測了等於測串接。
 check:
 	@dup=$$(sed 's/#.*//' env/.env.* | grep '^HTTP_PORT=' | tr -d ' ' | sort | uniq -d); \
 	test -z "$$dup" || { \
@@ -135,10 +118,8 @@ check:
 	test $$fail -eq 0
 
 # ── Deployment ──
-# 部署只有一條路：在目標主機上拉 CI 測過的不可變映像。刻意不提供「本機 build 後部署」
-# 的 target——在主機上重 build 會拉到不同的 base layer 或相依，破壞「測過的就是上線的」。
-# 臨時要在開發機上跑某個 environment，見 docs/deployment.md 的手動指令。
-# rollback = TAG 換回舊的 sha
+# 刻意沒有「本機 build 後部署」的 target——理由見 docs/concepts.md 的 Two commands, two places。
+# 臨時要在開發機上跑某個 environment，見 docs/deployment.md。
 deploy:
 	$(guard)
 	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy EXPOSE=proxy ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }

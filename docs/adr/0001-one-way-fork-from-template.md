@@ -1,4 +1,4 @@
-# 從 template 開出去的專案不與上游同步
+# Forks of this template do not track upstream
 
 `make init` 會對所有 git 追蹤的檔案做一次全域改名，並刪掉 `CLAUDE.md` 與 `docs/agents/`。
 從那一刻起新專案與這個 template 永久分岔——**上游之後修的 bug 沒有任何機制能送到已經開出去的專案**。
