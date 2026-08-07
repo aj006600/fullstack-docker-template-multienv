@@ -10,12 +10,27 @@
 git checkout -b fix/xxx
 # 改、commit、git push -u origin fix/xxx
 gh pr create --fill
-gh pr merge --squash    # CI 綠燈後自己就能 merge（approvals = 0）
+gh pr merge --squash    # CI 綠燈後 merge（沒有任何機制擋你提早按，見 What nothing enforces）
 ```
 
 - PR 觸發測試；merge 到 main 才 build 出 `:sha`；打 `v*` tag 才把 `:sha` 加上版本標籤
 - **部署由人在目標主機上執行**，pipeline 不連線任何主機（理由見 [One-time GitHub setup](#one-time-github-setup)）
 - main 上**每個** commit 都會 build 出 `:sha`（含純文件 commit）——promote、rollback、`git bisect` 都依賴這個不變量。重複建置的成本由 build cache 吸收
+
+### Working in parallel
+
+多人同時從 `main` 開分支**沒有問題**：每個 PR 的 base 都是 `main`，每個都會跑 CI，而且跑的不是
+你的分支本身，是 GitHub 現算的 merge commit（**你的改動 + 當下的 main**）——所以別人先 merge 了，
+你也不必為了讓 CI 正確而先 rebase。
+
+兩條紀律，都是因為沒有任何機制會提醒你（見 [What nothing enforces](#what-nothing-enforces)）：
+
+1. **PR 的 base 永遠是 `main`。** 把 base 指到另一個 PR 的分支（stacked PR），**CI 完全不會跑**——
+   `pull_request` 的 `branches: [main]` filter 比對的是 base 而非 head。分支間有依賴時，
+   從上游分支繼續寫，但等它 merge 了再開 PR。
+2. **綠燈會過期。** 那個勾是對「跑 CI 那一刻的 main」算的；之後別人 merge 了東西，GitHub 會重算
+   merge ref 但**不重跑 CI**（`synchronize` 只在 PR 的 head 更新時觸發）。所以 PR 開著一陣子、
+   期間 main 前進過的話，merge 前先把 main 併回自己的分支並 push，讓 CI 重跑一次。
 
 ## Build-once promotion
 
@@ -119,7 +134,7 @@ make deploy EXPOSE=<ports|proxy> ENV=prod \
 這個 template 假設 repo 是 **private**、方案是 **GitHub Free**。這個組合決定了哪些機制根本不存在，
 先讀完再去設定，免得對著設不起來的畫面找原因。
 
-### 為什麼沒有 deploy job
+### Why there is no deploy job
 
 Free 方案的私有 repo **不支援 Environments**（[官方文件](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)：
 私有 repo 要 GitHub Pro 或 Team 以上），連帶沒有 environment secrets，也沒有 prod 的 required reviewers。
@@ -146,19 +161,33 @@ Free 方案的私有 repo **不支援 Environments**（[官方文件](https://do
 > 專案若不需要保密，轉 public 是最便宜的解——兩項計費歸零，並一併拿回 Environments 與
 > branch protection。
 
-### Branch protection
+### What nothing enforces
 
-Free + private 同樣拿不到 branch protection：`main` 可以被直接 push、紅燈也擋不住 merge。
-單人 repo 的實務影響有限（這些機制主要是擋別人），但要靠自律——**PR 綠燈才 merge**。
+Free + private 也拿不到 branch protection 與 rulesets——`Protected branches`、
+`Required pull request reviewers` 都在 Pro 才有的清單裡
+（[GitHub's plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans)）。
+具體來說，這三件事**沒有任何機制在擋**：
 
-升級到 Pro 之後，到 **Settings → Branches** 對 `main` 加規則：
+| 應該成立的事 | 實際上誰在維持 |
+|-------------|--------------|
+| `main` 只經由 PR 進入 | 沒有機制——`git push origin main` 直接就進去了 |
+| 綠燈才 merge | 沒有機制——CI 還在跑、甚至紅燈，merge 按鈕都是綠的 |
+| 綠燈是對**當下**的 main 算的 | 沒有機制——見 [Working in parallel](#working-in-parallel) 第 2 條 |
+
+這是**刻意接受的留白**：以這個 template 的規模（一到數人、自己的專案），付費換這三道閘門不一定划算。
+但要留得明白——「main 的每個 commit 都測過」這個不變量目前**完全靠人維持**，而 build-once、
+promotion、rollback 全都建立在它之上。它破掉的時候不會報錯，只會有某個 `:sha` 其實沒被測過。
+
+要買回來就升級到 GitHub Pro，到 **Settings → Branches** 對 `main` 加規則：
 
 - **Require a pull request before merging**（單人可把 required approvals 設 0）
 - **Require status checks to pass** → 勾 `test-backend`、`build-frontend`、`check-compose`
+- **Require branches to be up to date before merging** → 這條治的是上表第三列
 - **Do not allow bypassing the above settings**（連 owner 也受限）
 
-> 注意順序：public 轉 private 時，**既有的 protection rules 與 environment secrets 會直接失效**，
-> 不是保留但停用。要用這些功能就先升級方案，再轉。
+> Pro 同時讓 Environments 可用，[為什麼沒有 deploy job](#why-there-is-no-deploy-job) 的前提就變了：
+> `deploy-prod` 的 required reviewers 會成為真的閘門，屆時值得把那個 job 加回來（只加 prod，
+> dev/qas 仍然沒有閘門、不值得那一分鐘）。
 
 ## Side note: dual hosting on GitLab + GitHub (deferred)
 
