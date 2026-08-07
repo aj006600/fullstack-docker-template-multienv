@@ -32,10 +32,16 @@ runtime stage 出貨、非 root；dev stage 含 pytest 與 ruff，只給本機�
 _Avoid_: preview、部署到本機（`make dev` 是開發，不是 deployment）
 
 **Topology**:
-這個 environment 怎麼對外曝露。三選一：`separate-hosts`（獨佔主機、綁 80）、
-`same-host-by-port`（同機不同埠）、`same-host-by-domain`（同機、Traefik 依 domain）。
-由 `MODE` 參數選定，對應 `deploy/compose.<mode>.yaml`。
-_Avoid_: mode（`MODE` 是參數名，敘述時用 topology）、部署方式
+這個 environment 怎麼對外曝露。二選一：`ports`（container 綁到主機的某個埠）、
+`proxy`（不綁埠，接上整台機器共用的 reverse proxy，由它依 domain 導流）。
+由 `EXPOSE` 參數選定，對應 `deploy/compose.<topology>.yaml`。
+
+「某個 environment 獨佔一台主機」**不是第三種 topology**，是 `ports` 把該主機的 `HTTP_PORT` 設成 80。
+
+Topology 與 environment 是兩個維度，但**設定上不正交**：topology 的參數（`ports` 用的 `HTTP_PORT`、
+`proxy` 用的 `DOMAIN`）住在 environment 的 env 檔裡。這是刻意的——把它們拆到第三個地方，
+只為了兩個變數多一層檔案。
+_Avoid_: mode（舊參數名 `MODE`，已改為 `EXPOSE`）、部署方式
 
 **Promotion**:
 把**同一顆**已測過的 image 往下一個 environment 送，不重新 build。

@@ -1,5 +1,0 @@
-# A：separate-hosts——每環境獨佔一台主機，前端綁標準 80 埠（見 docs/deploy-separate-hosts.md）。
-services:
-  frontend:
-    ports:
-      - "80:80"

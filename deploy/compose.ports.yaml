@@ -1,0 +1,7 @@
+# EXPOSE=ports：直接把 frontend 綁到主機的某個埠。
+# 三個 environment 同機並存時各用不同 HTTP_PORT；某個 environment 獨佔一台主機時，
+# 把該主機上那份 env 檔的 HTTP_PORT 設成 80，網址就不必帶埠（見 docs/deployment.md）。
+services:
+  frontend:
+    ports:
+      - "${HTTP_PORT:-80}:80"

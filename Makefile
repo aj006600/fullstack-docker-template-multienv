@@ -1,16 +1,16 @@
 DEV := -f compose.yaml -f compose.dev.yaml
 
-# MODE = separate-hosts | same-host-by-port | same-host-by-domain
-# ENV  = dev | qas | prod
+# EXPOSE = ports | proxy
+# ENV    = dev | qas | prod
 # 註解不可寫在同一行：Make 會把 # 之前的空白一起吃進變數值
-MODE ?= same-host-by-port
-ENV  ?= dev
+EXPOSE ?= ports
+ENV    ?= dev
 
-STACK   := -f compose.yaml -f deploy/compose.$(MODE).yaml --env-file env/.env.$(ENV)
+STACK   := -f compose.yaml -f deploy/compose.$(EXPOSE).yaml --env-file env/.env.$(ENV)
 PROJECT := COMPOSE_PROJECT_NAME=fullstack-$(ENV)
 
-# 打錯 MODE/ENV 時給明確訊息，而不是 compose 的 "no such file" 或靜靜載入到別的環境
-guard = @test -f deploy/compose.$(MODE).yaml || { echo "MODE=$(MODE) 無效。可用：separate-hosts | same-host-by-port | same-host-by-domain"; exit 1; }; \
+# 打錯 EXPOSE/ENV 時給明確訊息，而不是 compose 的 "no such file" 或靜靜載入到別的環境
+guard = @test -f deploy/compose.$(EXPOSE).yaml || { echo "EXPOSE=$(EXPOSE) 無效。可用：ports | proxy"; exit 1; }; \
 	test -f env/.env.$(ENV) || { echo "ENV=$(ENV) 無效。可用：dev | qas | prod"; exit 1; }
 
 .PHONY: help dev dev-down test lint format down deploy ps
@@ -22,11 +22,11 @@ help:
 	@echo "  make test | lint | format         跑在 dev stage 容器裡，與 CI 同一份 uv.lock"
 	@echo ""
 	@echo "Deployment（在目標主機上）"
-	@echo "  make deploy  MODE=… ENV=… IMAGE=… TAG=…   拉 CI 測過的映像，不重 build"
-	@echo "  make down    MODE=… ENV=…                 停止該環境"
+	@echo "  make deploy  EXPOSE=… ENV=… IMAGE=… TAG=…   拉 CI 測過的映像，不重 build"
+	@echo "  make down    EXPOSE=… ENV=…                 停止該環境"
 	@echo ""
-	@echo "  MODE = separate-hosts | same-host-by-port | same-host-by-domain   (預設 $(MODE))"
-	@echo "  ENV  = dev | qas | prod                                          (預設 $(ENV))"
+	@echo "  EXPOSE = ports | proxy      怎麼對外曝露：綁主機埠 / 掛共用 reverse proxy   (預設 $(EXPOSE))"
+	@echo "  ENV    = dev | qas | prod                                                 (預設 $(ENV))"
 	@echo ""
 	@echo "Inspection"
 	@echo "  make ps                           正在跑的 container（名稱 / 狀態 / 埠）"
@@ -67,7 +67,7 @@ format:
 # rollback = TAG 換回舊的 sha
 deploy:
 	$(guard)
-	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy MODE=same-host-by-domain ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }
+	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy EXPOSE=proxy ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }
 	IMAGE=$(IMAGE) TAG=$(TAG) $(PROJECT) docker compose $(STACK) pull
 	IMAGE=$(IMAGE) TAG=$(TAG) $(PROJECT) docker compose $(STACK) up -d --no-build
 

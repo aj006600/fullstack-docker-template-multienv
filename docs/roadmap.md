@@ -25,7 +25,9 @@
 ## Common production needs
 
 - **Secrets 管理**：真正的密鑰怎麼注入部署（GitHub Secrets → deploy、或 Vault / 雲端 secrets manager）。`env/` 只放非機密設定。
-- **TLS / HTTPS**：目前純 HTTP。對外真域名可讓 Traefik 自動申請 Let's Encrypt；內網用內部 CA / mkcert。
+- **TLS / HTTPS**：目前純 HTTP。走 `proxy` topology 的話，憑證屬於那份共用 reverse proxy 的職責
+  （對外真域名可自動申請 Let's Encrypt；內網用內部 CA / mkcert），本 repo 不需要改動——
+  見 [deployment.md](deployment.md) 的契約說明。`ports` topology 則需要自己在前面加一層。
 - **資料庫 / stateful 服務**：目前無狀態。加 compose 的 db 服務 + migration + 備份策略。
 - **可觀測性**：結構化 log、metrics、tracing。
 - **安全掃描**：映像漏洞掃描（Trivy）、Dependabot、SBOM、映像簽章（cosign）。
@@ -39,6 +41,10 @@
 - **前端品質把關**：`frontend/` **刻意**不設 lint / format / 測試——後端有 ruff（含 CI 的 `format --check`）
   與 pytest，前端 CI 只跑 `npm run build`。這個不對稱是有意識的取捨：前端目前只有一個展示用元件，
   等它長出真正的邏輯，再一次導入 eslint + vitest 比較划算（導入時記得同步 CI 與本機 `make` target）。
+- **前端 build-time 設定**：目前前端沒有任何自己的設定——環境是跟 backend 要的（`/api/message`），
+  所以三個 environment 共用同一顆前端映像。一旦前端需要 `VITE_*` 這類**建置時**注入的設定，
+  build-once promotion 就會被打破（每個 environment 都得各建一顆）。屆時的方向是改成 **runtime 注入**
+  （啟動時產生設定檔、或由 backend 提供），而不是每環境建一顆。
 - **前端 TypeScript**：目前純 JS。若前端會發展成真正的 Web UI，越早轉換成本越低。
 - **後端型別檢查**：目前無 mypy。code 量還小時導入 `strict` 模式最便宜。
 

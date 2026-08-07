@@ -39,21 +39,21 @@ make help      # 所有指令與參數
 部署在**目標主機**（amd64 Linux）上執行，拉 CI 測過的不可變映像，不重 build：
 
 ```bash
-make deploy MODE=<mode> ENV=<env> IMAGE=… TAG=…     # 拉指定版本並啟動
-make down   MODE=<mode> ENV=<env>                   # 停止
+make deploy EXPOSE=<topology> ENV=<env> IMAGE=… TAG=…    # 拉指定版本並啟動
+make down   EXPOSE=<topology> ENV=<env>                  # 停止
 ```
 
 > 刻意只有這一條部署路徑：在主機上從原始碼 build 會破壞「dev 測過的就是上 prod 的那顆」。
 > 開發機請用 `make dev`；要在開發機上臨時跑某個 environment，見 [docs/deployment.md](docs/deployment.md)。
 
-`MODE` 決定 **topology**——怎麼對外曝露。**選一種用**，不是同時跑。
+`EXPOSE` 決定 **topology**——怎麼對外曝露。兩種：
 
-| Topology | 佈局 | 隔離 | 何時選 |
-|------|------|------|--------|
-| **separate-hosts** | 每個 environment **各自一台主機**、標準 80 埠 | 完整 | 有多台機器 / 在意 prod 隔離 |
-| **same-host-by-port** | 三個 environment **同機、不同 port** | 無 | 一台機器、想最快、能接受 `IP:port` |
-| **same-host-by-domain** | 三個 environment **同機、Traefik 依 domain** | 無 | 一台機器、要 domain、團隊存取 |
+| Topology | 做什麼 | 何時選 | 網址長相 |
+|----------|--------|--------|---------|
+| **`ports`** | frontend 綁到主機的 `HTTP_PORT` | 預設。不需要 domain | `http://<host>:<port>` |
+| **`proxy`** | 接上整台機器共用的 reverse proxy，依 `DOMAIN` 導流 | 要 domain、團隊存取、日後要 TLS | `http://<domain>` |
 
+「一個 environment 獨佔一台主機」不是第三種選項——那是 `ports` 把 `HTTP_PORT` 設成 80。
 詳見 [docs/deployment.md](docs/deployment.md)。
 
 ## Structure
@@ -69,10 +69,9 @@ make down   MODE=<mode> ENV=<env>                   # 停止
 │   ├── package.json · package-lock.json  ·  Dockerfile
 ├── compose.yaml                # base：只定義服務與內部接線（不決定對外曝露）
 ├── compose.dev.yaml            # 本機開發覆寫：開 localhost 埠 + 後端 hot reload
-├── deploy/                     # 三種 topology（同一個 app、只差怎麼曝露）
-│   ├── compose.separate-hosts.yaml
-│   ├── compose.same-host-by-port.yaml
-│   └── compose.same-host-by-domain.yaml
+├── deploy/                     # 兩種 topology（同一個 app、只差怎麼曝露）
+│   ├── compose.ports.yaml      # 綁主機埠
+│   └── compose.proxy.yaml      # 掛共用 reverse proxy
 ├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT + DOMAIN
 ├── Makefile                    # dev / test·lint·format / deploy · down / ps / help
 ├── CONTEXT.md                  # 術語表（唯一定義處）
@@ -82,5 +81,5 @@ make down   MODE=<mode> ENV=<env>                   # 停止
 └── docs/                       # 詳細文檔（見上方 Docs）
 ```
 
-> topology `same-host-by-domain` 需要一份整台機器共用的 Traefik（`proxy` external network + 佔 80 埠），
-> 不在本 repo 內，需另外準備——見 [docs/deployment.md](docs/deployment.md)。
+> topology `proxy` 需要一份整台機器共用的 reverse proxy。它**不在本 repo**（一台機器一份，
+> 而 app 是一台機器多個）。本 repo 依賴的契約與我用的實作見 [docs/deployment.md](docs/deployment.md)。
