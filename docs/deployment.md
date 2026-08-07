@@ -6,14 +6,14 @@
 
 | 旋鈕 | 決定什麼 | 值 |
 |------|---------|----|
-| `MODE` | **Topology**——怎麼對外曝露 | `separate-hosts` ｜ `same-host-by-port` ｜ `same-host-by-domain` |
+| `EXPOSE` | **Topology**——怎麼對外曝露 | `ports` ｜ `proxy` |
 | `ENV` | **Environment**——載入哪份設定 | `dev` ｜ `qas` ｜ `prod` |
 
 部署在**目標主機**上執行，拉 CI 測過的不可變映像，不重 build：
 
 ```bash
-make deploy MODE=<mode> ENV=<env> IMAGE=… TAG=…        # 拉指定版本並啟動
-make down   MODE=<mode> ENV=<env>                      # 停止
+make deploy EXPOSE=<topology> ENV=<env> IMAGE=… TAG=…    # 拉指定版本並啟動
+make down   EXPOSE=<topology> ENV=<env>                  # 停止
 ```
 
 `TAG` 是 `:sha`（dev/qas）或 `vX.Y.Z`（prod），由 promotion 流程決定；rollback 就換回舊的 sha。
@@ -25,15 +25,17 @@ make down   MODE=<mode> ENV=<env>                      # 停止
 
 ## Choosing a topology
 
-| Topology | 佈局 | 隔離 | 何時選 | 對外曝露檔 |
-|----------|------|------|--------|-----------|
-| **A. separate-hosts** | 每個 environment **獨佔一台主機**，前端綁標準 **80** 埠 | **完整**——不同機器 | 有多台機器 / 在意 prod 隔離 | `deploy/compose.separate-hosts.yaml` |
-| **B. same-host-by-port** | 三個 environment **同機、不同 port** | **無** | 一台機器、想最快、能接受網址帶 port | `deploy/compose.same-host-by-port.yaml` |
-| **C. same-host-by-domain** | 三個 environment **同機**，共用 Traefik 依 domain 導流 | **無** | 一台機器、要 domain、團隊要能連 | `deploy/compose.same-host-by-domain.yaml` |
+只有兩種真正不同的曝露方式：
 
-**選一種用，不是同時跑。** A 是隔離最完整、最貼近真實世界的做法；B 最快上手；C 在同機方案裡最貼近真實 prod。
+| Topology | 做什麼 | 何時選 | 網址長相 |
+|----------|--------|--------|---------|
+| **`ports`** | frontend 綁到主機的 `HTTP_PORT` | 預設。一台機器跑一到多個 environment，不需要 domain | `http://<host>:<port>` |
+| **`proxy`** | 不綁主機埠，接上整台機器共用的 reverse proxy，由它依 `DOMAIN` 導流 | 要 domain、要團隊用網址存取、日後要 TLS | `http://<domain>` |
 
-> B / C 三個環境同機，沒有故障與安全隔離——prod 若重要，用 A。
+**「一個 environment 獨佔一台主機」不是第三種選項**——那是 `ports` 把該主機的 `HTTP_PORT` 設成 80，
+網址就不必帶埠。
+
+> `ports` 的三個 environment 同機並存時沒有故障與安全隔離。prod 若重要，讓它獨佔一台主機。
 
 ## Common steps
 
@@ -43,8 +45,8 @@ GitHub 上按「Use this template」（或 clone 本 repo），改成你的 app�
 
 ### 2. Configure each environment
 
-`env/.env.dev`、`env/.env.qas`、`env/.env.prod` 各放該 environment 的**非機密**設定
-（`APP_ENV`、`LOG_LEVEL`、以及 topology B 用的 `HTTP_PORT`、topology C 用的 `DOMAIN`）。
+`env/.env.dev`、`env/.env.qas`、`env/.env.prod` 各放該 environment 的**非機密**設定：`APP_ENV`、`LOG_LEVEL`、
+以及 topology 的參數——`ports` 用 `HTTP_PORT`、`proxy` 用 `DOMAIN`。
 真正的密鑰走 CI secrets 或部署時注入，別提交進 repo（見 [roadmap.md](roadmap.md)）。
 
 ### 3. Push and let CI build
@@ -52,34 +54,27 @@ GitHub 上按「Use this template」（或 clone 本 repo），改成你的 app�
 `make deploy` 拉的是 registry 裡的映像，所以要先 merge 到 `main`、讓 CI 建出該 commit 的 `:sha`。
 之後在主機上帶那個 sha 部署。
 
-### 4. Deploy
+### 4. Log in to the registry (只有 package 是 private 時才需要)
 
-見下方各 topology 小節。
+GHCR 的 package 預設跟著 repo 的可見性走。**package 是 public 的話這步跳過**——`docker compose pull`
+不需要認證。
 
----
-
-## A. separate-hosts
-
-每台主機只跑它自己那個 environment，前端佔標準 80 埠，不會與其他 environment 衝突。
+package 是 private 時，目標主機要先登入**一次**（這是主機的 bootstrap，不是每次部署的參數）：
 
 ```bash
-# 在 dev 主機
-make deploy MODE=separate-hosts ENV=dev \
-    IMAGE=ghcr.io/<your-account>/<repo> TAG=<git-sha>
-# qas 主機：ENV=qas；prod 主機：ENV=prod TAG=vX.Y.Z
+echo <PAT> | docker login ghcr.io -u <你的帳號> --password-stdin
 ```
 
-**連上**：瀏覽器打該主機的位址 `http://<主機 IP 或域名>`。頁面會顯示 `Environment: dev`（前端打 `/api/message` 從後端拿到的）。
+PAT 需要 `read:packages` 權限。沒登入的話 `make deploy` 會停在 `pull` 這步，錯誤訊息是
+`denied` 或 `unauthorized`。
 
-**改對外埠**：預設 80。要改成別的（例如 8080），編輯 `deploy/compose.separate-hosts.yaml` 的 `ports: "80:80"` → `"8080:80"`。
-
-**上 production 前還需要**（見 [roadmap.md](roadmap.md)）：真實域名 + DNS 指到 prod 主機、TLS/HTTPS、防火牆強化。
+> CD（deploy job）之後真的連上主機時同樣要處理這件事，見 [roadmap.md](roadmap.md)。
 
 ---
 
-## B. same-host-by-port
+## `ports`
 
-三個 environment 用不同的 host port 區分，可並存。
+frontend 綁到主機的 `HTTP_PORT`。三個 environment 同機並存時各用不同的埠。
 
 | Environment | `HTTP_PORT`（在 `env/.env.*`） | 網址 |
 |------|------------------------------|------|
@@ -87,11 +82,11 @@ make deploy MODE=separate-hosts ENV=dev \
 | qas  | 3001 | `http://<host>:3001` |
 | prod | 3002 | `http://<host>:3002` |
 
-三個埠**必須不同**（同機不能重複）。
+同機並存時三個埠**必須不同**。
 
 ```bash
-# MODE 預設就是 same-host-by-port
-make deploy ENV=dev  IMAGE=ghcr.io/<your-account>/<repo> TAG=<git-sha>
+# EXPOSE 預設就是 ports
+make deploy ENV=dev  IMAGE=ghcr.io/<your-account>/<your-repo> TAG=<git-sha>
 make deploy ENV=qas  IMAGE=… TAG=…
 make deploy ENV=prod IMAGE=… TAG=vX.Y.Z
 make ps              # 看狀態
@@ -101,76 +96,81 @@ make ps              # 看狀態
 各自獨立的 network 與 container），dev 的前端只連 dev 的後端，互不干擾。
 
 **連上**：
+
 - 你自己：`http://localhost:3000` / `:3001` / `:3002`
-- 團隊（同網路）：`http://<你的機器IP>:3000` 等——topology B 不需要 domain，直接 IP:port
+- 團隊（同網路）：`http://<你的機器IP>:3000` 等——不需要 domain，直接 IP:port
   ```bash
-  ipconfig getifaddr "$(route get default | awk '/interface:/{print $2}')"   # 查你的 IP
+  ipconfig getifaddr "$(route get default | awk '/interface:/{print $2}')"   # macOS
+  hostname -I | awk '{print $1}'                                            # Linux
   ```
+
+**獨佔主機**：把該主機上 `env/.env.<env>` 的 `HTTP_PORT` 改成 `80`，網址就是 `http://<host>`。
 
 **改埠**：改 `env/.env.<env>` 的 `HTTP_PORT`，再重跑 `make deploy ENV=<env> …`。
 （env 檔是主機上的本機檔案，不在映像裡，所以改完不需要重新 build。）
 
 ---
 
-## C. same-host-by-domain
+## `proxy`
 
-三個 environment 同機、共用同一個 80 埠，靠共用的 Traefik 依 Host 導流。
+不綁主機埠，接上整台機器共用的 reverse proxy，由它依 `DOMAIN` 把請求導到對應的 environment。
 
 ```
                         ┌─ dev.app.localhost  → dev  這組 container
-瀏覽器 → Traefik(:80) ────┼─ qas.app.localhost  → qas  這組 container
+瀏覽器 → proxy(:80) ─────┼─ qas.app.localhost  → qas  這組 container
                         └─ app.localhost      → prod 這組 container
 ```
 
-### Prerequisite: a shared Traefik (once per machine)
+### Prerequisite: 一份整台機器共用的 reverse proxy
 
-Traefik **不在本 repo**。你需要另外準備一份整台機器共用的 reverse proxy：建立一個名為 `proxy` 的
-external network、佔用 80 埠、並開啟 Docker provider 讓它讀取 container 的 Traefik label。
-所有 app、所有 environment 共用這一份，不用每個專案各跑。
+**這份 proxy 不在本 repo**，因為它是「一台機器一份」，而 app 是「一台機器多個」——每個 app repo
+各帶一份，只會互相搶 80 埠。
 
-### Bring up all three
+本 repo 依賴的**契約**是四件事，任何滿足它的 proxy 都可以：
+
+1. 一個名為 **`proxy`** 的 external Docker network（本 repo 的 frontend 會接上去）
+2. 一個名為 **`web`** 的 entrypoint，綁在主機的 **80** 埠
+3. 啟用 **Docker provider**，且 `exposedbydefault=false`——只導流明確貼了 `traefik.enable=true` 的 container
+4. Docker provider 的預設 network 設為 **`proxy`**
+
+我用的實作是 [aj006600/traefik-proxy](https://github.com/aj006600/traefik-proxy)（Traefik v3，
+`make up` 一次，整台機器共用）。你也可以用自己的——只要滿足上面四項。
+
+### Bring up
 
 ```bash
-make deploy MODE=same-host-by-domain ENV=dev  IMAGE=ghcr.io/<your-account>/<repo> TAG=<git-sha>
-make deploy MODE=same-host-by-domain ENV=qas  IMAGE=… TAG=…
-make deploy MODE=same-host-by-domain ENV=prod IMAGE=… TAG=vX.Y.Z
+make deploy EXPOSE=proxy ENV=dev  IMAGE=ghcr.io/<your-account>/<your-repo> TAG=<git-sha>
+make deploy EXPOSE=proxy ENV=qas  IMAGE=… TAG=…
+make deploy EXPOSE=proxy ENV=prod IMAGE=… TAG=vX.Y.Z
 make ps
 ```
 
-每個 environment 靠 env 檔的 `DOMAIN` 註冊到 Traefik。停某一個：`make down MODE=same-host-by-domain ENV=dev`。
+每個 environment 靠 env 檔的 `DOMAIN` 註冊路由。停某一個：`make down EXPOSE=proxy ENV=dev`。
 
-### How the domain resolves
+### Domain
 
-網址由 env 檔的 `DOMAIN` 決定。依「誰要連」有三種寫法：
+`DOMAIN` 必須**能解析到這台主機**。預設的 `*.localhost` 只在**主機自己**上開瀏覽器時有效
+（`*.localhost` 永遠指向 127.0.0.1），適合部署後在主機上驗證。
 
-| 情境 | `DOMAIN` 寫法 | 要設定什麼 |
-|--------|--------------|-----------|
-| **在主機上自己驗證** | `dev.app.localhost` | 無——`*.localhost` 瀏覽器自動解析到 127.0.0.1 |
-| **內網、免 DNS** | `dev.app.<主機IP>.nip.io` | 無——nip.io 自動解析到該 IP（需連得到外網） |
-| **正式對外** | 你的真實域名 | 正規 DNS + TLS + 機器對外曝露 |
-
-**`.localhost`（預設）**：只在**主機自己**上開瀏覽器時有效——`*.localhost` 永遠指向 127.0.0.1，
-所以從別台機器打這個網址只會連到那台機器自己。適合部署後在主機上 `curl` 驗證。
-
-**`.nip.io`（內網存取）**：`任何字.<IP>.nip.io` 會自動解析到 `<IP>`，零 DNS 設定。先查主機的對外 IP
-（活躍介面**不一定**是 `en0`，別寫死）：
+要讓別人連得到，就得換成真的解析得到這台機器的名字——內網、公開域名各有做法，
+見 [traefik-proxy 的 README](https://github.com/aj006600/traefik-proxy)（domain 怎麼解析是 proxy 的事，
+本 repo 不重述）。**執行時傳入即可，不要改 `env/.env.*`**（那是被 git 追蹤的檔案）：
 
 ```bash
-ipconfig getifaddr "$(route get default | awk '/interface:/{print $2}')"   # macOS
-hostname -I | awk '{print $1}'                                            # Linux
+DOMAIN=dev.app.example.com make deploy EXPOSE=proxy ENV=dev IMAGE=… TAG=…
 ```
 
-假設是 `10.0.0.5`，**執行時傳入 `DOMAIN`**（**別改 `env/.env.*`**——那是被 git 追蹤的檔案，
-IP 一旦 commit 就會進公開 repo，而且 IP 會變）：
+### 回 404
+
+代表網址**有解析成功**（請求到了 proxy），只是 proxy 沒有對應的路由：
 
 ```bash
-DOMAIN=dev.app.10.0.0.5.nip.io make deploy MODE=same-host-by-domain ENV=dev IMAGE=… TAG=…
+docker ps --format '{{.Names}}\t{{.Networks}}' | grep fullstack   # 環境起來了、且接上 proxy network？
+grep DOMAIN env/.env.dev                                          # 打的網址跟 DOMAIN 一致嗎？
 ```
 
-同網路、能連外網的人就能開 `http://dev.app.10.0.0.5.nip.io`。
-
-**正式對外**：用你自己的真實域名 + 正規 DNS 指到機器 + TLS（見 [roadmap.md](roadmap.md)）。
-nip.io 只是過渡方便，不是 production 做法。
+最常見原因是**打的網址與 `DOMAIN` 不一致**——路由規則是 `Host(<DOMAIN>)`，不 match 就 404。
+proxy 本身沒起來、或路由表怎麼看，屬於 proxy 那邊的排查。
 
 ---
 
@@ -178,28 +178,15 @@ nip.io 只是過渡方便，不是 production 做法。
 
 ### `Bind for 0.0.0.0:<port> failed: port is already allocated`
 
-```bash
-lsof -nP -iTCP:<port> -sTCP:LISTEN     # 看什麼程式占用
-docker ps --filter publish=<port>       # 或看是哪個 container
-```
-
-解法：停掉占用者（`docker stop <容器>`），或改埠——topology A 改
-`deploy/compose.separate-hosts.yaml`，topology B 改 `env/.env.*` 的 `HTTP_PORT`。
-topology C 常見原因是 topology A 也綁了 80，或別的 web server 佔住。
-
-### Topology C 回 404
-
-代表 nip.io / localhost **有解析成功**（請求有到 Traefik），只是 Traefik 沒有對應的路由。逐項檢查：
+`ports` topology 才會遇到。
 
 ```bash
-docker ps --filter name=traefik                              # 1. Traefik 有起來嗎？
-docker ps --format '{{.Names}}\t{{.Networks}}' | grep fullstack   # 2. 環境有起來、且接上 proxy network？
-curl -s http://localhost:8080/api/http/routers | grep -oE '"rule":"Host[^"]*"' | sort -u   # 3. 現有哪些 Host 路由
-grep DOMAIN env/.env.dev                                     # 4. 打的網址跟 DOMAIN 一致嗎？
+lsof -nP -iTCP:<port> -sTCP:LISTEN      # 看什麼程式占用
+docker ps --filter publish=<port>        # 或看是哪個 container
 ```
 
-最常見原因：**`DOMAIN` 沒改**（還是 `.localhost`）卻用 nip.io 網址打——路由是 `Host(dev.app.localhost)`、
-不 match nip.io → 404。解法：執行時傳入 `DOMAIN` 重跑。
+解法：停掉占用者，或改 `env/.env.<env>` 的 `HTTP_PORT` 再重跑。
+若占用 80 埠的是共用 proxy，代表這台機器已經在跑 `proxy` topology——兩種 topology 不能同時搶 80。
 
 ---
 
@@ -214,10 +201,10 @@ grep DOMAIN env/.env.dev                                     # 4. 打的網址�
 
 ```bash
 COMPOSE_PROJECT_NAME=fullstack-qas docker compose \
-  -f compose.yaml -f deploy/compose.same-host-by-port.yaml \
+  -f compose.yaml -f deploy/compose.ports.yaml \
   --env-file env/.env.qas up -d --build
 
-make down MODE=same-host-by-port ENV=qas      # 停止
+make down EXPOSE=ports ENV=qas      # 停止
 ```
 
 `COMPOSE_PROJECT_NAME` 不能省——省了會用資料夾名當 project 名，跟 `make dev` 的 container 互相覆蓋。

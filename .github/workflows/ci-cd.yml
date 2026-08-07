@@ -97,7 +97,7 @@ jobs:
           {
             echo "### dev：尚未接上主機，請自行在 dev 主機上執行"
             echo '```bash'
-            echo "make deploy MODE=<擇一> ENV=dev IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+            echo "make deploy EXPOSE=<ports|proxy> ENV=dev IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -113,7 +113,7 @@ jobs:
           {
             echo "### qas：尚未接上主機，請自行在 qas 主機上執行"
             echo '```bash'
-            echo "make deploy MODE=<擇一> ENV=qas IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+            echo "make deploy EXPOSE=<ports|proxy> ENV=qas IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -152,6 +152,6 @@ jobs:
           {
             echo "### prod：尚未接上主機，請自行在 prod 主機上執行"
             echo '```bash'
-            echo "make deploy MODE=<擇一> ENV=prod IMAGE=${{ env.IMAGE }} TAG=${{ github.ref_name }}"
+            echo "make deploy EXPOSE=<ports|proxy> ENV=prod IMAGE=${{ env.IMAGE }} TAG=${{ github.ref_name }}"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"

@@ -41,7 +41,7 @@ ghcr.io/<your-account>/fullstack-docker-template-multienv-frontend:<git-sha>
 Deployment = 在**目標主機**上「拉 CI 測過的不可變 image + `up -d`」，**不在主機重 build**（在主機重 build 會破壞 build-once 的保證）。pipeline 與人工走**同一條指令**，不會漂移：
 
 ```bash
-make deploy MODE=<separate-hosts|same-host-by-port|same-host-by-domain> ENV=<dev|qas|prod> \
+make deploy EXPOSE=<ports|proxy> ENV=<dev|qas|prod> \
     IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<git-sha 或 vX.Y.Z>
 ```
 
@@ -99,7 +99,7 @@ Image 不可變且都留在 registry，所以 **rollback = 重新部署上一組
 git log --oneline                     # 1. 找出要回到的舊 SHA
 
 # 2. 在目標主機上把該環境部署回舊 SHA（一行）
-make deploy MODE=<擇一> ENV=prod \
+make deploy EXPOSE=<ports|proxy> ENV=prod \
     IMAGE=ghcr.io/<your-account>/fullstack-docker-template-multienv TAG=<old-sha>
 ```
 

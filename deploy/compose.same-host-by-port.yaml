@@ -1,5 +1,0 @@
-# B：same-host-by-port——各環境用不同 HTTP_PORT 對外，三環境可並存（見 docs/deploy-same-host-by-port.md）。
-services:
-  frontend:
-    ports:
-      - "${HTTP_PORT:-3000}:80"
