@@ -6,14 +6,14 @@
 
 | 旋鈕 | 決定什麼 | 值 |
 |------|---------|----|
-| `EXPOSE` | **Topology**——怎麼對外曝露 | `ports` ｜ `proxy` |
+| `EXPOSE` | 怎麼對外曝露 | `ports` ｜ `proxy` |
 | `ENV` | **Environment**——載入哪份設定 | `dev` ｜ `qas` ｜ `prod` |
 
 部署在**目標主機**上執行，拉 CI 測過的不可變映像，不重 build：
 
 ```bash
-make deploy EXPOSE=<topology> ENV=<env> IMAGE=… TAG=…    # 拉指定版本並啟動
-make down   EXPOSE=<topology> ENV=<env>                  # 停止
+make deploy EXPOSE=<ports|proxy> ENV=<dev|qas|prod> IMAGE=… TAG=…   # 拉指定版本並啟動
+make down   EXPOSE=<ports|proxy> ENV=<dev|qas|prod>                 # 停止
 ```
 
 `TAG` 是 `:sha`（dev/qas）或 `vX.Y.Z`（prod）；rollback 就換回舊的 sha——無狀態時才這麼單純，
@@ -23,11 +23,11 @@ make down   EXPOSE=<topology> ENV=<env>                  # 停止
 > （`no matching manifest for linux/arm64`）。開發機請用 `make dev`；理由與例外見 [roadmap.md](roadmap.md)
 > 與本文最後一節。
 
-## Choosing a topology
+## Choosing ports or proxy
 
 只有兩種真正不同的曝露方式：
 
-| Topology | 做什麼 | 何時選 | 網址長相 |
+| `EXPOSE` | 做什麼 | 何時選 | 網址長相 |
 |----------|--------|--------|---------|
 | **`ports`** | frontend 綁到主機的 `HTTP_PORT` | 預設。一台機器跑一到多個 environment，不需要 domain | `http://<host>:<port>` |
 | **`proxy`** | 不綁主機埠，接上整台機器共用的 reverse proxy，由它依 `DOMAIN` 導流 | 要 domain、要團隊用網址存取、日後要 TLS | `http://<domain>` |
@@ -49,7 +49,7 @@ GitHub 上按「Use this template」（或 clone 本 repo），改成你的 app�
 
 | 檔案 | 進版控 | 放什麼 |
 |------|-------|-------|
-| `env/.env.<env>` | 是 | **非機密**：`APP_ENV`、`LOG_LEVEL`，與 topology 的參數（`ports` 用 `HTTP_PORT`、`proxy` 用 `DOMAIN`） |
+| `env/.env.<env>` | 是 | **非機密**：`APP_ENV`、`LOG_LEVEL`，與曝露用的參數（`ports` 用 `HTTP_PORT`、`proxy` 用 `DOMAIN`） |
 | `env/.env.<env>.local` | **否**（`.gitignore` 擋掉） | **機密**：DB 連線字串、API key。每台主機自己建 |
 
 `.local` 疊在前者之上，**同名變數以 `.local` 為準**；沒有 `.local` 的機器照常啟動。
@@ -176,9 +176,25 @@ make ps
 DOMAIN=dev.app.example.com make deploy EXPOSE=proxy ENV=dev IMAGE=… TAG=…
 ```
 
-### Getting a 404
+---
 
-代表網址**有解析成功**（請求到了 proxy），只是 proxy 沒有對應的路由：
+## Troubleshooting
+
+### `Bind for 0.0.0.0:<port> failed: port is already allocated`
+
+只有 `ports` 會遇到。
+
+```bash
+lsof -nP -iTCP:<port> -sTCP:LISTEN      # 看什麼程式占用
+docker ps --filter publish=<port>        # 或看是哪個 container
+```
+
+解法：停掉占用者，或改 `env/.env.<env>` 的 `HTTP_PORT` 再重跑。
+若占用 80 埠的是共用 proxy，代表這台機器已經在跑 `proxy`——兩種曝露方式不能同時搶 80。
+
+### 404 from the proxy
+
+只有 `proxy` 會遇到。網址**有解析成功**（請求到了 proxy），只是 proxy 沒有對應的路由：
 
 ```bash
 docker ps --format '{{.Names}}\t{{.Networks}}' | grep fullstack   # 環境起來了、且接上 proxy network？
@@ -187,45 +203,3 @@ grep DOMAIN env/.env.dev                                          # 打的網址
 
 最常見原因是**打的網址與 `DOMAIN` 不一致**——路由規則是 `Host(<DOMAIN>)`，不 match 就 404。
 proxy 本身沒起來、或路由表怎麼看，屬於 proxy 那邊的排查。
-
----
-
-## Troubleshooting
-
-### `Bind for 0.0.0.0:<port> failed: port is already allocated`
-
-`ports` topology 才會遇到。
-
-```bash
-lsof -nP -iTCP:<port> -sTCP:LISTEN      # 看什麼程式占用
-docker ps --filter publish=<port>        # 或看是哪個 container
-```
-
-解法：停掉占用者，或改 `env/.env.<env>` 的 `HTTP_PORT` 再重跑。
-若占用 80 埠的是共用 proxy，代表這台機器已經在跑 `proxy` topology——兩種 topology 不能同時搶 80。
-
----
-
-## Running an environment on your dev machine
-
-日常開發用 `make dev` 就好。但偶爾你會想在開發機上看某個 environment 的完整部署形態——
-例如驗證 topology 設定、或 debug「dev stage 正常、runtime stage 壞掉」這種只在非 root 下出現的問題。
-
-**這個 template 刻意不提供對應的 `make` target**，因為同一個指令在正式主機上執行就是反模式
-（在主機重 build 會破壞 build-once 的保證，見 [concepts.md](concepts.md#two-commands-two-places)）。
-真的需要時手動執行：
-
-```bash
-COMPOSE_PROJECT_NAME=fullstack-qas APP_NAME=fullstack docker compose \
-  -f compose.yaml -f deploy/compose.ports.yaml \
-  --env-file env/.env.qas up -d --build
-
-make down EXPOSE=ports ENV=qas      # 停止
-```
-
-兩個變數都不能省：`COMPOSE_PROJECT_NAME` 省了會用資料夾名當 project 名，跟 `make dev` 的 container
-互相覆蓋；`APP_NAME` 省了 `env/.env.*` 的 `DOMAIN` 會插值成畸形的 `qas..localhost`——而且只是**警告**，
-不會失敗。平常走 `make` 時這兩個都由 Makefile 帶入。
-
-注意這樣跑起來的東西：**沒有經過 CI 把關，image 名是 `fullstack-backend:latest`、追不到版本**。
-它是臨時檢查手段，不是部署方式——不要讓別人長期連它。

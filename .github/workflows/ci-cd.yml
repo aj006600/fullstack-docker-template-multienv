@@ -96,7 +96,7 @@ jobs:
         run: |
           {
             echo "### 部署這個 commit"
-            echo "在目標主機上執行（\`EXPOSE\` 依該主機的 topology 擇一）："
+            echo "在目標主機上執行（\`EXPOSE\` 依該主機的曝露方式擇一）："
             echo '```bash'
             echo "make deploy EXPOSE=<ports|proxy> ENV=<dev|qas> IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
             echo '```'

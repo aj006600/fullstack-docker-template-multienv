@@ -119,7 +119,6 @@ check:
 
 # ── Deployment ──
 # 刻意沒有「本機 build 後部署」的 target——理由見 docs/concepts.md 的 Two commands, two places。
-# 臨時要在開發機上跑某個 environment，見 docs/deployment.md。
 deploy:
 	$(guard)
 	@test -n "$(IMAGE)" && test -n "$(TAG)" || { echo "需要 IMAGE 與 TAG，例：make deploy EXPOSE=proxy ENV=dev IMAGE=ghcr.io/<帳號>/<repo> TAG=<sha>"; exit 1; }

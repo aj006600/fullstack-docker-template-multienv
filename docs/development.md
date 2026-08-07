@@ -91,7 +91,7 @@ cd frontend && npm install && npm run dev           # :5173，/api 已由 Vite �
 ## Inspecting what's running
 
 ```bash
-docker compose ls        # 有哪些 compose project 在跑（一眼看出起了哪些環境/topology）
+docker compose ls        # 有哪些 compose project 在跑（一眼看出起了哪些環境）
 make ps                  # 模板內建：正在跑的 container（名稱 / 狀態 / 埠）
 docker ps                # 同上，未美化
 ```
