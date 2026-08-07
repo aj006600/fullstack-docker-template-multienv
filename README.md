@@ -90,7 +90,7 @@ make down   EXPOSE=<topology> ENV=<env>                  # 停止
 │   ├── compose.ports.yaml      # 綁主機埠
 │   └── compose.proxy.yaml      # 掛共用 reverse proxy
 ├── env/{.env.dev,.env.qas,.env.prod}   # 各環境設定 + HTTP_PORT + DOMAIN
-├── Makefile                    # dev / test·lint·format / deploy · down / ps / help
+├── Makefile                    # init / dev / test·lint·format·check / deploy·down / ps
 ├── CONTEXT.md                  # 術語表（唯一定義處）
 ├── .github/workflows/
 │   ├── ci-cd.yml               # merge→build+dev/qas 自動；打 v* tag→prod

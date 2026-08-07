@@ -22,7 +22,7 @@ PROJECT := COMPOSE_PROJECT_NAME=$(APP_NAME)-$(ENV) APP_NAME=$(APP_NAME)
 guard = @test -f deploy/compose.$(EXPOSE).yaml || { echo "EXPOSE=$(EXPOSE) 無效。可用：ports | proxy"; exit 1; }; \
 	test -f env/.env.$(ENV) || { echo "ENV=$(ENV) 無效。可用：dev | qas | prod"; exit 1; }
 
-.PHONY: help init dev dev-down test lint format down deploy ps
+.PHONY: help init dev dev-down test lint format check down deploy ps
 
 help:
 	@echo "Setup（從 template 開新專案時做一次）"
@@ -32,6 +32,7 @@ help:
 	@echo "  make dev                          hot reload、localhost:3000 / :8000（前景執行）"
 	@echo "  make dev-down                     停止並清理 make dev 的 container 與 network"
 	@echo "  make test | lint | format         跑在 dev stage 容器裡，與 CI 同一份 uv.lock"
+	@echo "  make check                        驗證部署設定（不啟動容器，幾秒）"
 	@echo ""
 	@echo "Deployment（在目標主機上）"
 	@echo "  make deploy  EXPOSE=… ENV=… IMAGE=… TAG=…   拉 CI 測過的映像，不重 build"
@@ -99,6 +100,34 @@ lint:
 
 format:
 	$(RUNDEV) ruff format .
+
+# ── Config check ──
+# 把每種 EXPOSE × ENV 組合渲染一遍（不啟動容器），只驗兩件事——都是「人手動編輯、
+# 而且錯了不會當場報錯」的：
+#   1. 三個 environment 的 HTTP_PORT 互異。撞埠要到部署當下才炸 port is already allocated。
+#   2. 渲染時沒有未解析的變數。漏傳 APP_NAME 會讓 DOMAIN 變成 "dev..localhost"，
+#      而 compose 只給 warning、退出碼 0——不主動檢查就不會發現。
+# 刻意不斷言 project 名或 router 名：它們由 $(APP_NAME)-$(ENV) 拼出來，測了等於測字串串接。
+# CI 呼叫同一個 target，本機與 CI 不會漂移。
+check:
+	@dup=$$(sed 's/#.*//' env/.env.* | grep '^HTTP_PORT=' | tr -d ' ' | sort | uniq -d); \
+	test -z "$$dup" || { \
+	  echo "FAIL: 多個 environment 用了同一個 HTTP_PORT，同機並存時會撞埠："; \
+	  echo "  $$dup"; exit 1; }
+	@fail=0; \
+	for e in ports proxy; do for v in dev qas prod; do \
+	  out=$$(COMPOSE_PROJECT_NAME=$(APP_NAME)-$$v APP_NAME=$(APP_NAME) docker compose \
+	         -f compose.yaml -f deploy/compose.$$e.yaml --env-file env/.env.$$v config 2>&1); \
+	  if [ $$? -ne 0 ]; then \
+	    echo "FAIL $$e/$$v: compose config 失敗"; echo "$$out" | tail -3; fail=1; \
+	  elif echo "$$out" | grep -q 'variable is not set'; then \
+	    echo "FAIL $$e/$$v: 有未解析的變數"; \
+	    echo "$$out" | grep -oE 'The [^ ]+ variable is not set' | sort -u | sed 's/^/  /'; fail=1; \
+	  else \
+	    echo "ok   $$e/$$v"; \
+	  fi; \
+	done; done; \
+	test $$fail -eq 0
 
 # ── Deployment ──
 # 部署只有一條路：在目標主機上拉 CI 測過的不可變映像。刻意不提供「本機 build 後部署」

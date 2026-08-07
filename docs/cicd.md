@@ -125,7 +125,7 @@ make deploy EXPOSE=<ports|proxy> ENV=prod \
 到 **Settings → Branches** 對 `main` 加規則：
 
 - **Require a pull request before merging**（禁止直接 push；單人可把 required approvals 設 0）
-- **Require status checks to pass** → 勾 `test-backend` 和 `build-frontend`
+- **Require status checks to pass** → 勾 `test-backend`、`build-frontend`、`check-compose`
 - **Do not allow bypassing the above settings**（連 owner 也受限）
 
 ### 3. 若要把 repo 轉為 private：先升級方案，再轉
@@ -137,8 +137,8 @@ Environments**——連帶失去 environment secrets 與 prod 的 required revie
 
 所以要轉私有：**先升到 GitHub Pro 以上**（私有 repo 才能用 Environments），再轉。
 
-若堅持留在免費方案並轉私有，剩下的只有可見性——PR 仍會觸發 `test-backend` 與 `build-frontend`、
-紅燈仍看得見，但 `main` 可被直接 push、紅燈擋不住 merge、上 prod 也不會停下等核准。
+若堅持留在免費方案並轉私有，剩下的只有可見性——PR 仍會觸發 `test-backend`、`build-frontend`
+與 `check-compose`，紅燈仍看得見，但 `main` 可被直接 push、紅燈擋不住 merge、上 prod 也不會停下等核准。
 單人 repo 的實務影響有限（這些機制主要是擋別人）。
 
 > 順帶一提，維持 public 的話 Actions 分鐘數與 Packages 儲存都不計費；轉私有後兩者都開始計入方案額度。
