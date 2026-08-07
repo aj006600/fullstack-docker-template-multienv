@@ -46,7 +46,11 @@ make deploy ENV=qas IMAGE=… TAG=…
 
 > 版本永遠是**傳入的**——environment 不「知道」自己該跑哪顆 image。`make deploy` 的 `TAG` 由 promotion 流程
 > 決定（merge → 該 commit 的 `:sha` 部署 dev+qas；打 `v*` tag → prod），人工部署與 rollback 就自己指定。
-> 「哪個環境跑哪顆」的紀錄 = GitHub Environments 部署歷史 + `docker ps` 的 image tag。見 [cicd.md](cicd.md)。
+> 見 [cicd.md](cicd.md)。
+
+> **「哪個環境跑哪顆」目前只能靠 `docker ps` 的 image tag。** GitHub Environments 上雖然有部署歷史，
+> 但 deploy job 現在只印出指令、不連線主機（見 [cicd.md](cicd.md) 與 [roadmap.md](roadmap.md)），
+> 那些紀錄**不代表實際部署發生過**。接上 SSH / docker context 之後，部署歷史才會成為可信的紀錄。
 
 ## Local vs CI/CD: two separate worlds
 

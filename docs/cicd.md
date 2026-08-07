@@ -65,6 +65,15 @@ git push origin v1.2.0                 # 3. 推 tag → 觸發 prod 發版
 
 > `production` environment 若設了 required reviewers，發版會**停下等人核准**。
 
+**tag 必須指向已經 build 完成的 commit。** `release` job 是把既有的 `:sha` 重新貼標籤，所以那顆映像要先存在。
+merge 之後**立刻**打 tag 有可能搶在 main 的 build 完成之前（tag 與 main 是不同的 ref，concurrency 不會讓它們排隊），
+此時 job 會以 `manifest unknown` 失敗。
+
+這個失敗是**安全**的——沒有任何東西被發布。等 main 的 build 跑完，在 Actions 頁面 re-run 該 job 即可，不必重打 tag。
+
+> 反過來說，`:sha` 存在本身就證明那個 commit 上過 main 且測試綠燈（`build` job 的前提就是這兩件事），
+> 所以指向未經 CI 的 commit 的 tag 也會在這一步失敗，不會漏出去。
+
 ## Which version is running
 
 Image 用 **git SHA** 當 tag，所以「哪個環境跑哪一版」= 「跑哪個 SHA」。
@@ -78,7 +87,9 @@ git checkout v1.0.0                   # 或用版本 tag 切到某次發版的 c
 docker ps --format '{{.Image}}'       # 看正在跑的 container 用哪顆 image
 ```
 
-> GitHub 網頁 → repo → **Environments**：可看每個環境「部署了哪個 SHA、何時、由誰」的完整歷史。不用開環境分支。
+> GitHub 網頁 → repo → **Environments** 會列出部署歷史，但 deploy job 目前只印指令、不連線主機，
+> 所以那些紀錄**不代表實際部署發生過**。現階段請以主機上的 `docker ps` 為準；接上 SSH / docker context
+> 之後（見 [roadmap.md](roadmap.md)），Environments 才會成為可信的紀錄。
 
 ## Rollback
 
@@ -114,7 +125,20 @@ make deploy MODE=<擇一> ENV=prod \
 - **Require status checks to pass** → 勾 `test-backend` 和 `build-frontend`
 - **Do not allow bypassing the above settings**（連 owner 也受限）
 
-> 免費方案的**私有** repo 無法用 branch protection，需 GitHub Pro 或改為 **public**。
+### 3. 若要把 repo 轉為 private：先升級方案，再轉
+
+順序反了會掉設定。GitHub **Free 方案的私有 repo** 不支援 branch protection 與 rulesets，也**不能設定
+Environments**——連帶失去 environment secrets 與 prod 的 required reviewers，上面兩節就全部做不了。
+而且 public repo 轉 private 時，**既有的 protection rules 與 environment secrets 會直接失效**，
+不是保留但停用；等升級後還得重設一次。
+
+所以要轉私有：**先升到 GitHub Pro 以上**（私有 repo 才能用 Environments），再轉。
+
+若堅持留在免費方案並轉私有，剩下的只有可見性——PR 仍會觸發 `test-backend` 與 `build-frontend`、
+紅燈仍看得見，但 `main` 可被直接 push、紅燈擋不住 merge、上 prod 也不會停下等核准。
+單人 repo 的實務影響有限（這些機制主要是擋別人）。
+
+> 順帶一提，維持 public 的話 Actions 分鐘數與 Packages 儲存都不計費；轉私有後兩者都開始計入方案額度。
 
 ## Side note: dual hosting on GitLab + GitHub (deferred)
 

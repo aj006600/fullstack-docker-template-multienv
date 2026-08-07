@@ -41,14 +41,24 @@ dev-down:
 # ── Tests and quality（dev stage 容器，與 CI 同一份 uv.lock）──
 # --build 必要：pyproject.toml / uv.lock 烤在 image 裡（掛載只蓋 app/ 與 tests/），
 # 不重建會用到舊設定；無變更時 layer cache 幾乎零成本。
+#
+# --user：dev stage 以 root 執行，而 ruff format 會寫回掛載的 app/ 與 tests/。
+# 在 Linux 上那些檔案會變成 root 所有，之後編輯不了（macOS 的 Docker Desktop 會轉譯所有權，看不出問題）。
+# 快取改寫到 /tmp：映像裡的 /app 由 root 擁有，換成你的 uid 之後寫不進 .ruff_cache / .pytest_cache。
+RUNDEV = docker compose $(DEV) run --build --rm \
+	--user $(shell id -u):$(shell id -g) \
+	-e RUFF_CACHE_DIR=/tmp/.ruff_cache \
+	-e PYTEST_ADDOPTS="-p no:cacheprovider" \
+	backend
+
 test:
-	docker compose $(DEV) run --build --rm backend pytest
+	$(RUNDEV) pytest
 
 lint:
-	docker compose $(DEV) run --build --rm backend ruff check .
+	$(RUNDEV) ruff check .
 
 format:
-	docker compose $(DEV) run --build --rm backend ruff format .
+	$(RUNDEV) ruff format .
 
 # ── Deployment ──
 # 部署只有一條路：在目標主機上拉 CI 測過的不可變映像。刻意不提供「本機 build 後部署」
