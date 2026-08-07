@@ -12,11 +12,19 @@ jobs:
     permissions:
       packages: write
     steps:
+      # package 名 = <repo 名>-<service>（見 ci-cd.yml 的 build job）。從 GITHUB_REPOSITORY 推導
+      # 而非寫死，fork 或改名都不必改這個檔案。用 shell 而非 github.event.repository：
+      # schedule 事件的 payload 不保證帶 repository 資訊。
+      - run: echo "REPO=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_ENV"
+
       - uses: dataaxiom/ghcr-cleanup-action@v1
         with:
-          # 兩個服務各一個 package；repo 改名時要一起改
-          packages: fullstack-docker-template-multienv-backend,fullstack-docker-template-multienv-frontend
-          keep-n-tagged: 10          # 只算 :sha 建置（v* 在 exclude-tags 保護，不佔額度）
+          packages: ${{ env.REPO }}-backend,${{ env.REPO }}-frontend
+          # 只算 :sha 建置（v* 在 exclude-tags 保護，不佔額度）。main 每個 commit 建一顆，
+          # 所以這個數字就是 dev/qas 的 rollback 視窗有多深——原本的 10 個 commit 太淺。
+          # public repo 的 Packages 儲存不計費，而且各 :sha 之間只有 COPY app 那層不同
+          # （base 與 uv sync 共用同一個 blob），所以放寬幾乎沒有成本。
+          keep-n-tagged: 50
           exclude-tags: v*           # 正式版永不刪除——rollback 才有得回
           delete-untagged: true
           dry-run: false

@@ -80,7 +80,13 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
+  # 以下三個 deploy job 目前「只印指令」，不連線任何主機。它們保留著是因為結構本身有價值：
+  # job 圖形顯示 promotion 順序、environment 是日後掛各環境 SSH secrets 的作用域、
+  # production 的 required reviewers 是真實生效的核准閘門。接上主機時是填空，不是重新設計。
+  # 代價：Environments 會留下不代表實際部署的紀錄——所以 job 名稱直說，文件也如實描述。
+  # 注意這些都依賴 Environments 可用：免費方案的 private repo 不支援（見 docs/cicd.md）。
   deploy-dev:
+    name: deploy-dev (prints command only)
     needs: build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -88,10 +94,15 @@ jobs:
     steps:
       # TODO：接上 SSH / docker context 後，改為真的連上 dev 主機執行下列指令
       - run: |
-          echo "在 dev 主機上執行："
-          echo "  make deploy MODE=<擇一> ENV=dev IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+          {
+            echo "### dev：尚未接上主機，請自行在 dev 主機上執行"
+            echo '```bash'
+            echo "make deploy MODE=<擇一> ENV=dev IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy-qas:
+    name: deploy-qas (prints command only)
     needs: deploy-dev
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
@@ -99,8 +110,12 @@ jobs:
     steps:
       # TODO：接上 SSH / docker context 後，改為真的連上 qas 主機執行下列指令
       - run: |
-          echo "在 qas 主機上執行："
-          echo "  make deploy MODE=<擇一> ENV=qas IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+          {
+            echo "### qas：尚未接上主機，請自行在 qas 主機上執行"
+            echo '```bash'
+            echo "make deploy MODE=<擇一> ENV=qas IMAGE=${{ env.IMAGE }} TAG=${{ github.sha }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # ========== 打 v* tag：發版到 prod（兩個映像加版本標籤，不重 build）==========
   release:
@@ -126,6 +141,7 @@ jobs:
             ${{ env.IMAGE }}-${{ matrix.service }}:${{ github.sha }}
 
   deploy-prod:
+    name: deploy-prod (prints command only)
     needs: release
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
@@ -133,5 +149,9 @@ jobs:
     steps:
       # TODO：接上 SSH / docker context 後，改為真的連上 prod 主機執行下列指令
       - run: |
-          echo "在 prod 主機上執行："
-          echo "  make deploy MODE=<擇一> ENV=prod IMAGE=${{ env.IMAGE }} TAG=${{ github.ref_name }}"
+          {
+            echo "### prod：尚未接上主機，請自行在 prod 主機上執行"
+            echo '```bash'
+            echo "make deploy MODE=<擇一> ENV=prod IMAGE=${{ env.IMAGE }} TAG=${{ github.ref_name }}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
