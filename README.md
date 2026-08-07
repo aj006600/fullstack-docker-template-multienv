@@ -16,6 +16,23 @@
 | **上 production 前還要加什麼**（Secrets/TLS/DB/健康檢查…） | [docs/roadmap.md](docs/roadmap.md) |
 | **術語**（`dev` 的三個意思、up vs deploy、topology…） | [CONTEXT.md](CONTEXT.md) |
 
+<!-- init:start -->
+## Make it yours
+
+從這個 template 開了新 repo 之後，先跑一次：
+
+```bash
+make init APP_NAME=my-app
+```
+
+它會把 template 的名字換成 `my-app`——container 與 network 名、本機 build 的 image 名、
+reverse proxy 的 router 名、`DOMAIN`，以及 README 標題、頁面 title 這些沒有插值能力的地方。
+同時移除 `make init` 自己與 `CLAUDE.md` / `docs/agents/`（那是蓋這個 template 時用的，不是給你的專案的）。
+
+> 需要乾淨的工作區——它會改動十幾個檔案，這樣你隨時可以 `git checkout .` 反悔。
+> 跑完 `git diff` 檢查一遍再 commit。
+<!-- init:end -->
+
 ## Quickstart
 
 ```bash
