@@ -21,10 +21,11 @@ jobs:
         with:
           packages: ${{ env.REPO }}-backend,${{ env.REPO }}-frontend
           # 只算 :sha 建置（v* 在 exclude-tags 保護，不佔額度）。main 每個 commit 建一顆，
-          # 所以這個數字就是 dev/qas 的 rollback 視窗有多深——原本的 10 個 commit 太淺。
-          # public repo 的 Packages 儲存不計費，而且各 :sha 之間只有 COPY app 那層不同
-          # （base 與 uv sync 共用同一個 blob），所以放寬幾乎沒有成本。
-          keep-n-tagged: 50
+          # 所以這個數字就是 dev/qas 的 rollback 視窗有多深。
+          # private repo 的 Packages 儲存計入方案額度（Free 含 500MB），所以這個數字有成本。
+          # 真正吃額度的不是 :sha 的數量——各 :sha 之間多半只差 COPY app 那層（base 與 uv sync
+          # 共用 blob）——而是每次 pyproject.toml / package-lock.json 變動生出的那份新 base blob。
+          keep-n-tagged: 20
           exclude-tags: v*           # 正式版永不刪除——rollback 才有得回
           delete-untagged: true
           dry-run: false

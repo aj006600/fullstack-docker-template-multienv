@@ -54,12 +54,11 @@ GitHub 上按「Use this template」（或 clone 本 repo），改成你的 app�
 `make deploy` 拉的是 registry 裡的映像，所以要先 merge 到 `main`、讓 CI 建出該 commit 的 `:sha`。
 之後在主機上帶那個 sha 部署。
 
-### 4. Log in to the registry (只有 package 是 private 時才需要)
+### 4. Log in to the registry
 
-GHCR 的 package 預設跟著 repo 的可見性走。**package 是 public 的話這步跳過**——`docker compose pull`
-不需要認證。
-
-package 是 private 時，目標主機要先登入**一次**（這是主機的 bootstrap，不是每次部署的參數）：
+GHCR 的 package 預設跟著 repo 的可見性走，而這個 template 假設 repo 是 private，所以 package 也是——
+目標主機要先登入**一次**（這是主機的 bootstrap，不是每次部署的參數）。
+（repo 若是 public，package 也會是 public，這步可以跳過。）
 
 ```bash
 echo <PAT> | docker login ghcr.io -u <你的帳號> --password-stdin
