@@ -1,8 +1,8 @@
 # Local Development
 
-[← README](../README.md) ｜ 觀念先修：[concepts.md](concepts.md) ｜ 詞彙：[CONTEXT.md](../CONTEXT.md)
+[← README](../README.md)
 
-前後端怎麼溝通見 [README 的架構圖](../README.md#quickstart)：瀏覽器只打 frontend，`/api/*` 由 nginx
+前後端怎麼溝通：瀏覽器只打 frontend，`/api/*` 由 nginx
 反向代理到 backend（同源、後端免處理 CORS）。`/api/message` 會回傳目前 environment，所以切換 `APP_ENV`
 時前端顯示的環境也會跟著變。
 
@@ -38,7 +38,7 @@ curl http://localhost:8000/api/message      # 或開瀏覽器 http://localhost:3
 
 - **Hot reload 只適用「後端 + `make dev`」**（只有這個組合掛載了 source code + `--reload`）。
 - **前端在 `make dev` 不會 hot reload**（它是 build 好的 nginx image）；前端要即時開發請用下方「Working without containers」的 `npm run dev`（Vite HMR，`:5173`，跑一次讓它開著、存檔即自動更新）。
-- **部署（`make deploy`）不掛載 source code**，跑的是 CI 建好的映像——改本機程式碼不會反映（見 [concepts.md](concepts.md)）。
+- **部署（`make deploy`）不掛載 source code**，跑的是 CI 建好的映像——改本機程式碼不會反映。
 
 ## Tests & lint
 

@@ -10,7 +10,7 @@ on:
     branches: [main]
 
 # 同一個 ref 一次只跑一條：兩個 build 同時寫同一個 GHA cache scope 會互相覆蓋，
-# 而且 CD 一旦接上主機（docs/roadmap.md），部署順序就需要它。
+# 而且 CD 一旦接上主機，部署順序就需要它。
 # PR 例外：新 commit 直接取消舊 run。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -59,7 +59,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: make check
 
-  # ========== merge 到 main：build 兩個映像（部署由人在主機上執行，見 docs/cicd.md）==========
+  # ========== merge 到 main：build 兩個映像（部署由人在主機上執行）==========
   build:
     needs: [test-backend, build-frontend, check-compose]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -90,7 +90,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
       # 部署指令印在 run summary，把 sha 直接填好省得回頭查。CD 不連線主機——部署是人在
-      # 目標主機上跑的，理由見 docs/cicd.md。
+      # 目標主機上跑的。
       # 限定單一 matrix leg：不加這個條件，backend 與 frontend 會各印一份一模一樣的區塊。
       - if: matrix.service == 'backend'
         run: |

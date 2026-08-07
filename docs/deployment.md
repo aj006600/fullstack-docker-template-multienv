@@ -1,6 +1,6 @@
 # Deployment
 
-[← README](../README.md) ｜ 觀念先修：[concepts.md](concepts.md) ｜ 詞彙：[CONTEXT.md](../CONTEXT.md)
+[← README](../README.md)
 
 部署 = 在某台主機上讓某個 environment 跑起來。兩個旋鈕：
 
@@ -16,12 +16,11 @@ make deploy EXPOSE=<ports|proxy> ENV=<dev|qas|prod> IMAGE=… TAG=…   # 拉指
 make down   EXPOSE=<ports|proxy> ENV=<dev|qas|prod>                 # 停止
 ```
 
-`TAG` 是 `:sha`（dev/qas）或 `vX.Y.Z`（prod）；rollback 就換回舊的 sha——無狀態時才這麼單純，
-見 [CONTEXT.md](../CONTEXT.md) 的 Rollback 條目與 [cicd.md](cicd.md)。
+`TAG` 是 `:sha`（dev/qas）或 `vX.Y.Z`（prod）；rollback 就換回舊的 sha——無狀態時才這麼單純：
+一旦有了資料庫 schema，程式碼回得去，migration 過的資料回不去。
 
 > **主機必須是 amd64 Linux。** CI 只建 amd64——在 Apple Silicon 的開發機上 `make deploy` 會失敗
-> （`no matching manifest for linux/arm64`）。開發機請用 `make dev`；理由與例外見 [roadmap.md](roadmap.md)
-> 與本文最後一節。
+> （`no matching manifest for linux/arm64`）。開發機請用 `make dev`；例外見本文最後一節。
 
 ## Choosing ports or proxy
 
@@ -82,7 +81,7 @@ echo <PAT> | docker login ghcr.io -u <你的帳號> --password-stdin
 PAT 需要 `read:packages` 權限。沒登入的話 `make deploy` 會停在 `pull` 這步，錯誤訊息是
 `denied` 或 `unauthorized`。
 
-> 之後 CD 真的連上主機時同樣要處理這件事，見 [roadmap.md](roadmap.md)。
+> 之後 CD 真的連上主機時同樣要處理這件事。
 
 ---
 
